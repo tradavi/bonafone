@@ -107,16 +107,38 @@ export default async function AdminReparationsPage({ searchParams }: Props) {
       <div className="bg-surface border border-border rounded-2xl overflow-hidden">
         <div className="p-4 border-b border-border space-y-3">
           <div className="flex items-center gap-3 flex-wrap">
-            <form className="flex-1 min-w-[240px] relative">
+            <form
+              action="/admin/reparations"
+              method="get"
+              className="flex-1 min-w-[240px] flex gap-2"
+            >
               {status && <input type="hidden" name="status" value={status} />}
               {showArchived && <input type="hidden" name="archived" value="1" />}
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-foreground-muted" />
-              <input
-                name="q"
-                defaultValue={q}
-                placeholder="Rechercher par numéro, client, email, appareil…"
-                className="w-full pl-9 pr-3.5 py-2 bg-surface-2 border border-border rounded-lg text-sm focus:outline-none focus:border-primary placeholder:text-foreground-subtle"
-              />
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-foreground-muted" />
+                <input
+                  name="q"
+                  defaultValue={q}
+                  placeholder="Numéro, code-barres (REP-…), client, email, appareil…"
+                  autoComplete="off"
+                  className="w-full pl-9 pr-3.5 py-2 bg-surface-2 border border-border rounded-lg text-sm focus:outline-none focus:border-primary placeholder:text-foreground-subtle"
+                />
+              </div>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-primary hover:bg-primary-strong text-white rounded-lg text-sm font-semibold transition flex items-center gap-1.5"
+              >
+                <Search className="h-3.5 w-3.5" />
+                Rechercher
+              </button>
+              {q && (
+                <Link
+                  href={buildUrl({ status, archived: showArchived ? "1" : undefined })}
+                  className="px-3 py-2 bg-surface-2 border border-border hover:border-primary rounded-lg text-sm text-foreground-muted hover:text-foreground transition"
+                >
+                  Effacer
+                </Link>
+              )}
             </form>
             <div className="inline-flex rounded-lg border border-border overflow-hidden text-sm">
               <Link

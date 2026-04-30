@@ -4,6 +4,7 @@ import "./globals.css";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { TopBar } from "@/components/layout/top-bar";
+import { HideOnHome } from "@/components/layout/hide-on-home";
 import { themeInitScript } from "@/components/layout/theme-toggle";
 import { STORE } from "@/lib/utils";
 
@@ -86,7 +87,9 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground print:bg-white print:text-black">
         <div className="print:hidden">
-          <TopBar />
+          <HideOnHome>
+            <TopBar />
+          </HideOnHome>
           <Header />
         </div>
         <main className="flex-1">{children}</main>

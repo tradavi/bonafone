@@ -3,6 +3,7 @@ import { Search, Heart } from "lucide-react";
 import { LogoFull } from "@/components/ui/logo";
 import { NavLinks } from "./nav-links";
 import { UserMenu } from "./user-menu";
+import { HideOnHome } from "./hide-on-home";
 import { CartCounter } from "@/components/cart/cart-counter";
 import { auth } from "@/auth";
 
@@ -25,24 +26,26 @@ export async function Header() {
             <LogoFull />
           </Link>
 
-          {/* Search */}
-          <div className="hidden md:flex flex-1 max-w-2xl">
-            <form action="/boutique" className="flex w-full" role="search">
-              <input
-                name="q"
-                type="search"
-                placeholder="Rechercher un smartphone, accessoire..."
-                className="flex-1 px-4 py-2.5 text-sm bg-surface border border-border rounded-l-lg focus:outline-none focus:border-primary placeholder:text-foreground-subtle"
-              />
-              <button
-                type="submit"
-                className="px-5 bg-primary hover:bg-primary-strong text-white rounded-r-lg flex items-center gap-2 text-sm font-semibold transition shadow-[0_0_20px_var(--primary-glow)]"
-              >
-                <Search className="h-4 w-4" />
-                <span className="hidden lg:inline">Rechercher</span>
-              </button>
-            </form>
-          </div>
+          {/* Search — caché sur la home (page service réparation) */}
+          <HideOnHome>
+            <div className="hidden md:flex flex-1 max-w-2xl">
+              <form action="/boutique" className="flex w-full" role="search">
+                <input
+                  name="q"
+                  type="search"
+                  placeholder="Rechercher un smartphone, accessoire..."
+                  className="flex-1 px-4 py-2.5 text-sm bg-surface border border-border rounded-l-lg focus:outline-none focus:border-primary placeholder:text-foreground-subtle"
+                />
+                <button
+                  type="submit"
+                  className="px-5 bg-primary hover:bg-primary-strong text-white rounded-r-lg flex items-center gap-2 text-sm font-semibold transition shadow-[0_0_20px_var(--primary-glow)]"
+                >
+                  <Search className="h-4 w-4" />
+                  <span className="hidden lg:inline">Rechercher</span>
+                </button>
+              </form>
+            </div>
+          </HideOnHome>
 
           {/* Actions */}
           <div className="flex items-center gap-1 md:gap-2 ml-auto">
@@ -58,8 +61,10 @@ export async function Header() {
           </div>
         </div>
 
-        {/* Nav */}
-        <NavLinks />
+        {/* Nav — cachée sur la home */}
+        <HideOnHome>
+          <NavLinks />
+        </HideOnHome>
       </div>
     </header>
   );
