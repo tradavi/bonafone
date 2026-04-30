@@ -87,9 +87,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground print:bg-white print:text-black">
         <div className="print:hidden">
-          <HideOnHome>
-            <TopBar />
-          </HideOnHome>
+          <TopBar />
           <Header />
         </div>
         <main className="flex-1">{children}</main>
