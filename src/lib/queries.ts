@@ -534,6 +534,57 @@ export async function getAdminKpis() {
   };
 }
 
+/**
+ * KPIs centrés sur les réparations + avis pour le tableau de bord (commerce
+ * volontairement exclu, conformément à la directive admin).
+ */
+export async function getRepairsDashboardKpis() {
+  const [
+    activeRepairsCount,
+    repairsAgg,
+    repairStatusGroup,
+    reviewAgg,
+    productsCount,
+    pendingReclamations,
+    unreadMessages,
+  ] = await Promise.all([
+    prisma.repair.count({
+      where: { status: { notIn: ["DEMANDE_DEVIS", "RESTITUE", "IRREPARABLE"] } },
+    }),
+    prisma.repair.aggregate({
+      _avg: { finalCost: true },
+      _count: true,
+    }),
+    prisma.repair.groupBy({
+      by: ["status"],
+      _count: { _all: true },
+    }),
+    prisma.review.aggregate({
+      _avg: { rating: true },
+      _count: true,
+      where: { isPublished: true },
+    }),
+    prisma.product.count({ where: { isActive: true } }),
+    prisma.reclamation.count({ where: { status: { in: ["OUVERTE", "EN_COURS"] } } }),
+    prisma.contactMessage.count(),
+  ]);
+
+  return {
+    activeRepairsCount,
+    totalRepairs: repairsAgg._count,
+    avgFinalCost: repairsAgg._avg.finalCost ?? 0,
+    repairsByStatus: repairStatusGroup.map((g) => ({
+      status: g.status,
+      count: g._count._all,
+    })),
+    reviewsAvg: reviewAgg._avg.rating ?? 0,
+    reviewsCount: reviewAgg._count,
+    productsCount,
+    pendingReclamations,
+    unreadMessages,
+  };
+}
+
 export async function getLowStockProducts(threshold?: number) {
   const products = await prisma.product.findMany({
     where: { isActive: true },

@@ -7,7 +7,6 @@ import {
   Users,
   MessageSquare,
   Star,
-  BarChart3,
   Settings,
   AlertCircle,
 } from "lucide-react";
@@ -42,7 +41,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { href: "/admin/avis", label: "Avis", icon: <Star className={ICON_CLS} /> },
     { href: "/admin/reclamations", label: "Réclamations", icon: <AlertCircle className={ICON_CLS} /> },
     { href: "/admin/messages", label: "Messages", icon: <MessageSquare className={ICON_CLS} /> },
-    { href: "/admin/statistiques", label: "Statistiques", icon: <BarChart3 className={ICON_CLS} /> },
     { href: "/admin/parametres", label: "Paramètres", icon: <Settings className={ICON_CLS} /> },
   ];
 

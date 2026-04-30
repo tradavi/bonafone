@@ -1,17 +1,17 @@
 import Link from "next/link";
 import {
-  ShoppingBag,
   Wrench,
-  Euro,
   Package,
   AlertCircle,
   Clock,
   FileText,
   ArrowRight,
+  Star,
+  MessageSquare,
 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 import {
-  getAdminKpis,
+  getRepairsDashboardKpis,
   getActiveRepairs,
   getLowStockProducts,
   countDevisRequests,
@@ -28,6 +28,20 @@ const STATUS_STYLES: Record<string, string> = {
   ATTENTE_PIECE: "bg-orange-500/15 text-orange-400 border-orange-500/30",
   TERMINE: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
   PRET_RECUPERATION: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40",
+  RESTITUE: "bg-zinc-500/15 text-zinc-400 border-zinc-500/30",
+  IRREPARABLE: "bg-primary/10 text-primary border-primary/30",
+};
+
+const REPAIR_STATUS_LABEL: Record<string, string> = {
+  RECU: "Reçu",
+  DIAGNOSTIC: "Diagnostic",
+  DEVIS_VALIDE: "Devis validé",
+  EN_REPARATION: "En réparation",
+  ATTENTE_PIECE: "Attente pièce",
+  TERMINE: "Terminé",
+  PRET_RECUPERATION: "À récupérer",
+  RESTITUE: "Restitué",
+  IRREPARABLE: "Irréparable",
 };
 
 function daysSince(d: Date) {
@@ -36,7 +50,7 @@ function daysSince(d: Date) {
 
 export default async function AdminDashboard() {
   const [kpis, activeRepairs, lowStock, devisCount] = await Promise.all([
-    getAdminKpis(),
+    getRepairsDashboardKpis(),
     getActiveRepairs(5),
     getLowStockProducts(),
     countDevisRequests(),
@@ -44,14 +58,9 @@ export default async function AdminDashboard() {
 
   const KPI = [
     {
-      label: "CA encaissé",
-      value: formatPrice(kpis.totalRevenue),
-      icon: Euro,
-    },
-    {
-      label: "Commandes",
-      value: kpis.ordersCount.toString(),
-      icon: ShoppingBag,
+      label: "Réparations actives",
+      value: kpis.activeRepairsCount.toString(),
+      icon: Wrench,
     },
     {
       label: "Demandes de devis",
@@ -59,9 +68,28 @@ export default async function AdminDashboard() {
       icon: FileText,
     },
     {
-      label: "Réparations actives",
-      value: kpis.activeRepairsCount.toString(),
+      label: "Coût moyen réparation",
+      value:
+        kpis.totalRepairs > 0 && kpis.avgFinalCost > 0
+          ? formatPrice(kpis.avgFinalCost)
+          : "—",
       icon: Wrench,
+    },
+    {
+      label: "Note moyenne",
+      value:
+        kpis.reviewsCount > 0 ? `${kpis.reviewsAvg.toFixed(1)} / 5` : "—",
+      icon: Star,
+    },
+    {
+      label: "Réclamations à traiter",
+      value: kpis.pendingReclamations.toString(),
+      icon: AlertCircle,
+    },
+    {
+      label: "Messages reçus",
+      value: kpis.unreadMessages.toString(),
+      icon: MessageSquare,
     },
     {
       label: "Produits actifs",
@@ -79,7 +107,7 @@ export default async function AdminDashboard() {
             Tableau de bord
           </h1>
           <p className="text-foreground-muted">
-            Vue d&apos;ensemble de l&apos;activité du magasin Bonafone.
+            Vue d&apos;ensemble du service de réparation Bonafone.
           </p>
         </div>
       </div>
@@ -109,8 +137,8 @@ export default async function AdminDashboard() {
         </Link>
       )}
 
-      {/* KPI */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      {/* KPI réparations + avis */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
         {KPI.map(({ label, value, icon: Icon }) => (
           <div
             key={label}
@@ -180,19 +208,32 @@ export default async function AdminDashboard() {
           </div>
         </div>
 
-        {/* Alertes stock */}
+        {/* Distribution réparations par statut */}
         <div className="bg-surface border border-border rounded-2xl p-6">
-          <div className="flex items-center gap-2 mb-5">
-            <AlertCircle className="h-5 w-5 text-primary" />
-            <h2 className="font-extrabold tracking-tight">Alertes stock</h2>
-          </div>
-          <div className="space-y-2">
-            {lowStock.length === 0 ? (
-              <div className="text-sm text-foreground-muted text-center py-4">
-                Tous les stocks sont OK 🎉
-              </div>
-            ) : (
-              lowStock.map((p) => (
+          <h2 className="font-extrabold tracking-tight mb-4">Réparations par statut</h2>
+          <Distribution
+            data={kpis.repairsByStatus.map((s) => ({
+              label: REPAIR_STATUS_LABEL[s.status] ?? s.status,
+              value: s.count,
+            }))}
+          />
+        </div>
+      </div>
+
+      {/* Alertes stock */}
+      <div className="bg-surface border border-border rounded-2xl p-6">
+        <div className="flex items-center gap-2 mb-5">
+          <AlertCircle className="h-5 w-5 text-primary" />
+          <h2 className="font-extrabold tracking-tight">Alertes stock</h2>
+        </div>
+        <div className="space-y-2">
+          {lowStock.length === 0 ? (
+            <div className="text-sm text-foreground-muted text-center py-4">
+              Tous les stocks sont OK 🎉
+            </div>
+          ) : (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {lowStock.map((p) => (
                 <div
                   key={p.id}
                   className="p-3 rounded-lg text-sm border-l-2 border-primary bg-primary/10"
@@ -202,11 +243,45 @@ export default async function AdminDashboard() {
                     {p.stock} restant{p.stock > 1 ? "s" : ""} (seuil : {p.lowStockAt})
                   </div>
                 </div>
-              ))
-            )}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function Distribution({ data }: { data: { label: string; value: number }[] }) {
+  if (data.length === 0) {
+    return (
+      <p className="text-sm text-foreground-muted text-center py-8">
+        Aucune donnée pour l&apos;instant.
+      </p>
+    );
+  }
+  const total = data.reduce((sum, d) => sum + d.value, 0) || 1;
+  return (
+    <div className="space-y-2.5">
+      {data.map((d) => {
+        const pct = (d.value / total) * 100;
+        return (
+          <div key={d.label}>
+            <div className="flex justify-between text-xs mb-1">
+              <span className="text-foreground-muted">{d.label}</span>
+              <span className="font-semibold">
+                {d.value} <span className="text-foreground-muted">({pct.toFixed(0)}%)</span>
+              </span>
+            </div>
+            <div className="h-2 bg-surface-2 rounded overflow-hidden">
+              <div
+                className="h-full bg-primary rounded transition-all"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
