@@ -21,12 +21,15 @@ import { LogoFull } from "@/components/ui/logo";
 
 export async function Footer() {
   const store = await getStoreSettings();
+  const whatsappDigits = store.whatsapp.replace(/\D/g, "");
+  // Réseaux sociaux : on affiche tous ceux configurés en admin. WhatsApp a son
+  // propre format wa.me/<digits>.
   const socials: { icon: typeof Facebook; href: string; label: string }[] = [
     store.facebook && { icon: Facebook, href: store.facebook, label: "Facebook" },
     store.instagram && { icon: Instagram, href: store.instagram, label: "Instagram" },
-    store.whatsapp && {
+    whatsappDigits && {
       icon: MessageCircle,
-      href: `https://wa.me/${store.whatsapp.replace(/\D/g, "")}`,
+      href: `https://wa.me/${whatsappDigits}`,
       label: "WhatsApp",
     },
     store.youtube && { icon: Youtube, href: store.youtube, label: "YouTube" },
@@ -58,12 +61,12 @@ export async function Footer() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl px-4 py-12 grid gap-10 md:grid-cols-4">
+      <div className="mx-auto max-w-7xl px-4 py-12 grid gap-10 md:grid-cols-3">
         {/* Magasin */}
         <div>
           <LogoFull className="mb-5" />
           <p className="text-sm text-foreground-muted mb-4">
-            Vente, reconditionné et réparation de smartphones, tablettes et ordinateurs.
+            Service de réparation et reconditionné — smartphones, tablettes et ordinateurs.
           </p>
           <ul className="space-y-2 text-sm text-foreground-muted">
             <li className="flex items-start gap-2">
@@ -91,20 +94,10 @@ export async function Footer() {
           </ul>
         </div>
 
-        <FooterCol title="Boutique" links={[
-          ["/boutique/smartphones", "Smartphones"],
-          ["/boutique/tablettes", "Tablettes"],
-          ["/boutique/ordinateurs", "Ordinateurs"],
-          ["/boutique/accessoires", "Accessoires"],
-          ["/boutique", "Toutes les promotions"],
-        ]} />
-
-        <FooterCol title="Services" links={[
+        <FooterCol title="Service réparation" links={[
           ["/reparations", "Demande de devis"],
-          ["/reparations/suivi", "Suivi de réparation"],
-          ["/reprise", "Reprise d'ancien appareil"],
+          ["/reparations/suivi", "Suivre ma réparation"],
           ["/temoignages", "Avis clients"],
-          ["/blog", "Blog & Conseils"],
         ]} />
 
         <FooterCol title="Aide & Compte" links={[
@@ -117,31 +110,31 @@ export async function Footer() {
         ]} />
       </div>
 
-      {/* Réseaux & paiement */}
+      {/* Réseaux sociaux */}
       <div className="border-t border-border">
-        <div className="mx-auto max-w-7xl px-4 py-6 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3 flex-wrap">
-            {socials.length > 0 && (
-              <span className="text-sm text-foreground-muted">Suivez-nous</span>
+        <div className="mx-auto max-w-7xl px-4 py-6 flex flex-col md:flex-row items-center justify-center md:justify-between gap-4">
+          <div className="flex items-center gap-3 flex-wrap justify-center">
+            {socials.length > 0 ? (
+              <>
+                <span className="text-sm text-foreground-muted">Suivez-nous</span>
+                {socials.map(({ icon: Icon, href, label }) => (
+                  <a
+                    key={label}
+                    href={href}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={label}
+                    className="h-9 w-9 grid place-items-center rounded-full bg-surface border border-border hover:bg-primary hover:border-primary transition"
+                  >
+                    <Icon className="h-4 w-4" />
+                  </a>
+                ))}
+              </>
+            ) : (
+              <span className="text-xs text-foreground-subtle">
+                Réseaux sociaux à configurer dans /admin/parametres
+              </span>
             )}
-            {socials.map(({ icon: Icon, href, label }) => (
-              <a
-                key={label}
-                href={href}
-                target="_blank"
-                rel="noreferrer"
-                aria-label={label}
-                className="h-9 w-9 grid place-items-center rounded-full bg-surface border border-border hover:bg-primary hover:border-primary transition"
-              >
-                <Icon className="h-4 w-4" />
-              </a>
-            ))}
-          </div>
-          <div className="flex items-center gap-2 text-xs text-foreground-muted">
-            <span>Paiement sécurisé</span>
-            {["CB", "Visa", "PayPal", "Alma"].map((p) => (
-              <span key={p} className="px-2 py-1 bg-surface border border-border rounded">{p}</span>
-            ))}
           </div>
         </div>
         <div className="border-t border-border py-4 text-center text-xs text-foreground-subtle">

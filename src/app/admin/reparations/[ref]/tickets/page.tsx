@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import bwipjs from "bwip-js/node";
 import { getRepairByNumber } from "@/lib/queries";
 import { STORE } from "@/lib/utils";
-import { AutoPrint, PrintButton } from "@/components/admin/auto-print";
+import { AutoPrint, PrintButtons } from "@/components/admin/auto-print";
 
 export const metadata = { title: "Tickets" };
 export const dynamic = "force-dynamic";
@@ -86,6 +86,9 @@ export default async function TicketsPage({ params, searchParams }: Props) {
           .ticket:last-of-type { page-break-after: auto; }
           .ticket * { color: black !important; background: transparent !important; border-color: black !important; }
           .ticket .barcode svg { width: 100% !important; height: auto !important; }
+          /* Mode d'impression sélectif : on cache le ticket non concerné */
+          body[data-print-mode="client"] .ticket-store { display: none !important; }
+          body[data-print-mode="store"] .ticket-client { display: none !important; }
         }
       `}</style>
 
@@ -97,7 +100,7 @@ export default async function TicketsPage({ params, searchParams }: Props) {
           >
             ← Retour au dossier
           </a>
-          <PrintButton />
+          <PrintButtons />
         </div>
 
         <div className="mx-auto max-w-3xl space-y-6 print:space-y-0">
@@ -151,15 +154,15 @@ function Ticket({
   const isClient = kind === "client";
   return (
     <div
-      className="ticket bg-white text-black mx-auto rounded-lg shadow-lg border border-zinc-300 print:rounded-none print:shadow-none print:border-0 font-mono text-[12px] leading-snug"
+      className={`ticket ${isClient ? "ticket-client" : "ticket-store"} bg-white text-black mx-auto rounded-lg shadow-lg border border-zinc-300 print:rounded-none print:shadow-none print:border-0 font-mono text-[14px] leading-snug`}
       style={{ width: "80mm", padding: "4mm" }}
     >
       {/* Header magasin */}
       <div className="text-center border-b border-dashed border-black pb-2 mb-2">
-        <div className="text-[14px] font-extrabold tracking-tight">{STORE.name}</div>
-        <div className="text-[10px]">{STORE.tagline}</div>
-        <div className="text-[10px] mt-1">{STORE.address}</div>
-        <div className="text-[10px]">
+        <div className="text-[18px] font-extrabold tracking-tight">{STORE.name}</div>
+        <div className="text-[12px]">{STORE.tagline}</div>
+        <div className="text-[12px] mt-1">{STORE.address}</div>
+        <div className="text-[12px]">
           {STORE.phone} · {STORE.email}
         </div>
       </div>
@@ -167,7 +170,7 @@ function Ticket({
       {/* Type de ticket */}
       <div className="text-center mb-2">
         <div
-          className="inline-block px-2 py-0.5 border border-black text-[10px] font-bold uppercase tracking-wider"
+          className="inline-block px-2 py-0.5 border border-black text-[12px] font-bold uppercase tracking-wider"
           style={{ borderRadius: 0 }}
         >
           {isClient ? "Reçu client" : "Reste avec l'appareil"}
@@ -176,7 +179,7 @@ function Ticket({
 
       {/* Code-barres */}
       <div className="barcode my-2 text-center" dangerouslySetInnerHTML={{ __html: barcodeSvg }} />
-      <div className="text-center text-[14px] font-extrabold tracking-widest mb-3">
+      <div className="text-center text-[18px] font-extrabold tracking-widest mb-3">
         {repair.number}
       </div>
 
@@ -198,32 +201,32 @@ function Ticket({
 
       {repair.issueDescription && (
         <div className="border-t border-dashed border-black mt-2 pt-2">
-          <div className="text-[10px] font-bold uppercase tracking-wider">Description</div>
-          <div className="text-[11px] mt-1 whitespace-pre-line">{repair.issueDescription}</div>
+          <div className="text-[12px] font-bold uppercase tracking-wider">Description</div>
+          <div className="text-[13px] mt-1 whitespace-pre-line">{repair.issueDescription}</div>
         </div>
       )}
 
       {isClient && repair.estimatedCost !== null && (
         <div className="border-t border-dashed border-black mt-2 pt-2 text-center">
-          <div className="text-[10px] uppercase tracking-wider">Devis estimé</div>
-          <div className="text-[16px] font-extrabold">
+          <div className="text-[12px] uppercase tracking-wider">Devis estimé</div>
+          <div className="text-[20px] font-extrabold">
             {repair.estimatedCost.toFixed(2)} €
           </div>
-          <div className="text-[9px]">À confirmer après diagnostic</div>
+          <div className="text-[11px]">À confirmer après diagnostic</div>
         </div>
       )}
 
       {isClient ? (
-        <div className="border-t border-dashed border-black mt-2 pt-2 text-center text-[10px]">
+        <div className="border-t border-dashed border-black mt-2 pt-2 text-center text-[12px]">
           <div className="font-bold mb-1">SUIVRE MA RÉPARATION</div>
-          <div>{trackUrl}</div>
+          <div className="break-all">{trackUrl}</div>
           <div className="mt-2">Conservez ce ticket — il sera demandé à la restitution.</div>
         </div>
       ) : (
-        <div className="border-t border-dashed border-black mt-2 pt-2 text-center text-[10px]">
+        <div className="border-t border-dashed border-black mt-2 pt-2 text-center text-[12px]">
           <div className="font-bold mb-1">⚠ ATTACHER À L&apos;APPAREIL</div>
           <div>Vérifier avant restitution :</div>
-          <div className="mt-1 grid grid-cols-2 gap-x-1 text-left text-[10px]">
+          <div className="mt-1 grid grid-cols-2 gap-x-1 text-left text-[12px]">
             <span>☐ État du devis</span>
             <span>☐ Pièce(s) reçue(s)</span>
             <span>☐ Tests OK</span>
@@ -232,7 +235,7 @@ function Ticket({
         </div>
       )}
 
-      <div className="text-center text-[9px] mt-3 pt-2 border-t border-dashed border-black">
+      <div className="text-center text-[11px] mt-3 pt-2 border-t border-dashed border-black">
         Merci de votre confiance · {STORE.hours}
       </div>
     </div>
@@ -242,8 +245,8 @@ function Ticket({
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex gap-1">
-      <div className="text-[10px] font-bold uppercase tracking-wider w-12 shrink-0">{label}</div>
-      <div className="text-[11px] flex-1 break-words">{value}</div>
+      <div className="text-[12px] font-bold uppercase tracking-wider w-14 shrink-0">{label}</div>
+      <div className="text-[13px] flex-1 break-words">{value}</div>
     </div>
   );
 }

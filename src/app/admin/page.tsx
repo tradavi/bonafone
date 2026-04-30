@@ -1,7 +1,6 @@
 import Link from "next/link";
 import {
   Wrench,
-  Package,
   AlertCircle,
   Clock,
   FileText,
@@ -9,12 +8,13 @@ import {
   Star,
   MessageSquare,
   Smile,
+  Frown,
 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 import {
   getRepairsDashboardKpis,
   getActiveRepairs,
-  getLowStockProducts,
+  getStaleActiveRepairs,
   countDevisRequests,
 } from "@/lib/queries";
 
@@ -50,12 +50,16 @@ function daysSince(d: Date) {
 }
 
 export default async function AdminDashboard() {
-  const [kpis, activeRepairs, lowStock, devisCount] = await Promise.all([
+  const [kpis, activeRepairs, staleRepairs, devisCount] = await Promise.all([
     getRepairsDashboardKpis(),
     getActiveRepairs(5),
-    getLowStockProducts(),
+    getStaleActiveRepairs(24),
     countDevisRequests(),
   ]);
+
+  function hoursSince(d: Date) {
+    return Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60));
+  }
 
   const KPI = [
     {
@@ -63,6 +67,12 @@ export default async function AdminDashboard() {
       value: kpis.happyClientsCount.toString(),
       icon: Smile,
       hint: "Réparations terminées & restituées",
+    },
+    {
+      label: "Clients tristes",
+      value: kpis.sadClientsCount.toString(),
+      icon: Frown,
+      hint: "Appareils déclarés irréparables",
     },
     {
       label: "Réparations actives",
@@ -97,11 +107,6 @@ export default async function AdminDashboard() {
       label: "Messages reçus",
       value: kpis.unreadMessages.toString(),
       icon: MessageSquare,
-    },
-    {
-      label: "Produits actifs",
-      value: kpis.productsCount.toString(),
-      icon: Package,
     },
   ];
 
@@ -230,30 +235,59 @@ export default async function AdminDashboard() {
         </div>
       </div>
 
-      {/* Alertes stock */}
-      <div className="bg-surface border border-border rounded-2xl p-6">
-        <div className="flex items-center gap-2 mb-5">
-          <AlertCircle className="h-5 w-5 text-primary" />
-          <h2 className="font-extrabold tracking-tight">Alertes stock</h2>
+      {/* Alerte : réparations actives en attente depuis plus de 24h */}
+      <div className="bg-surface border border-primary/30 rounded-2xl p-6">
+        <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-primary" />
+            <h2 className="font-extrabold tracking-tight">
+              Réparations à traiter en priorité
+            </h2>
+            <span className="text-xs text-foreground-muted">
+              ({staleRepairs.length} en attente depuis +24h)
+            </span>
+          </div>
+          {staleRepairs.length > 0 && (
+            <Link
+              href="/admin/reparations"
+              className="text-sm text-primary hover:underline font-semibold"
+            >
+              Voir toutes →
+            </Link>
+          )}
         </div>
         <div className="space-y-2">
-          {lowStock.length === 0 ? (
+          {staleRepairs.length === 0 ? (
             <div className="text-sm text-foreground-muted text-center py-4">
-              Tous les stocks sont OK 🎉
+              Aucune réparation en retard 🎉
             </div>
           ) : (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {lowStock.map((p) => (
-                <div
-                  key={p.id}
-                  className="p-3 rounded-lg text-sm border-l-2 border-primary bg-primary/10"
-                >
-                  <div className="font-medium">{p.name}</div>
-                  <div className="text-xs text-foreground-muted">
-                    {p.stock} restant{p.stock > 1 ? "s" : ""} (seuil : {p.lowStockAt})
-                  </div>
-                </div>
-              ))}
+              {staleRepairs.map((r) => {
+                const hours = hoursSince(r.createdAt);
+                const days = Math.floor(hours / 24);
+                return (
+                  <Link
+                    key={r.id}
+                    href={`/admin/reparations/${r.number}`}
+                    className="p-3 rounded-lg text-sm border-l-2 border-primary bg-primary/10 hover:bg-primary/20 transition block"
+                  >
+                    <div className="font-mono text-xs text-primary">{r.number}</div>
+                    <div className="font-medium">
+                      {r.brand} {r.model}
+                    </div>
+                    <div className="text-xs text-foreground-muted">
+                      {r.customerName} · {r.issueType}
+                    </div>
+                    <div className="text-[11px] text-primary font-semibold mt-1 flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      {days >= 1 ? `${days}j ` : ""}
+                      {hours - days * 24}h en attente · statut{" "}
+                      <span className="font-mono">{r.status.replace(/_/g, " ")}</span>
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           )}
         </div>

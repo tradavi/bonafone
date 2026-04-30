@@ -295,6 +295,31 @@ export async function getActiveRepairs(limit?: number) {
   });
 }
 
+/**
+ * Réparations actives en attente depuis plus de N heures (par défaut 24h).
+ * Utilisé pour l'alerte « à traiter en priorité » sur le dashboard admin.
+ */
+export async function getStaleActiveRepairs(hoursThreshold = 24) {
+  const cutoff = new Date(Date.now() - hoursThreshold * 60 * 60 * 1000);
+  return prisma.repair.findMany({
+    where: {
+      status: { notIn: ["DEMANDE_DEVIS", "RESTITUE", "IRREPARABLE"] },
+      createdAt: { lt: cutoff },
+    },
+    orderBy: { createdAt: "asc" }, // les plus anciennes en premier
+    select: {
+      id: true,
+      number: true,
+      customerName: true,
+      brand: true,
+      model: true,
+      issueType: true,
+      status: true,
+      createdAt: true,
+    },
+  });
+}
+
 export async function getAllRepairs() {
   // Toutes les réparations physiques (exclut les demandes de devis).
   return prisma.repair.findMany({
@@ -542,6 +567,7 @@ export async function getRepairsDashboardKpis() {
   const [
     activeRepairsCount,
     happyClientsCount,
+    sadClientsCount,
     repairsAgg,
     repairStatusGroup,
     reviewAgg,
@@ -554,6 +580,8 @@ export async function getRepairsDashboardKpis() {
     }),
     // Clients heureux = réparations terminées et restituées au client
     prisma.repair.count({ where: { status: "RESTITUE" } }),
+    // Clients tristes = appareils irréparables
+    prisma.repair.count({ where: { status: "IRREPARABLE" } }),
     prisma.repair.aggregate({
       _avg: { finalCost: true },
       _count: true,
@@ -575,6 +603,7 @@ export async function getRepairsDashboardKpis() {
   return {
     activeRepairsCount,
     happyClientsCount,
+    sadClientsCount,
     totalRepairs: repairsAgg._count,
     avgFinalCost: repairsAgg._avg.finalCost ?? 0,
     repairsByStatus: repairStatusGroup.map((g) => ({

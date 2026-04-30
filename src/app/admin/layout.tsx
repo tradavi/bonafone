@@ -1,7 +1,5 @@
 import {
   LayoutDashboard,
-  Package,
-  ShoppingBag,
   Wrench,
   FileText,
   Users,
@@ -28,15 +26,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   const NAV = [
     { href: "/admin", label: "Tableau de bord", icon: <LayoutDashboard className={ICON_CLS} /> },
-    { href: "/admin/produits", label: "Produits", icon: <Package className={ICON_CLS} /> },
-    { href: "/admin/commandes", label: "Commandes", icon: <ShoppingBag className={ICON_CLS} /> },
+    { href: "/admin/reparations", label: "Réparations", icon: <Wrench className={ICON_CLS} /> },
     {
       href: "/admin/devis",
       label: "Demandes de devis",
       icon: <FileText className={ICON_CLS} />,
       badge: devisCount > 0 ? devisCount : undefined,
     },
-    { href: "/admin/reparations", label: "Réparations", icon: <Wrench className={ICON_CLS} /> },
     { href: "/admin/clients", label: "Clients", icon: <Users className={ICON_CLS} /> },
     { href: "/admin/avis", label: "Avis", icon: <Star className={ICON_CLS} /> },
     { href: "/admin/reclamations", label: "Réclamations", icon: <AlertCircle className={ICON_CLS} /> },
