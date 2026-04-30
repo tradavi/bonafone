@@ -22,21 +22,25 @@ import { LogoFull } from "@/components/ui/logo";
 export async function Footer() {
   const store = await getStoreSettings();
   const whatsappDigits = store.whatsapp.replace(/\D/g, "");
-  // Réseaux sociaux : on affiche tous ceux configurés en admin. WhatsApp a son
-  // propre format wa.me/<digits>.
+
+  // Réseaux sociaux : on affiche TOUJOURS les 4 principaux (Facebook,
+  // Instagram, WhatsApp, YouTube). URL admin si configurée, sinon homepage
+  // générique du service. Les autres réseaux (TikTok/LinkedIn/X) ne s'affichent
+  // que s'ils sont configurés.
   const socials: { icon: typeof Facebook; href: string; label: string }[] = [
-    store.facebook && { icon: Facebook, href: store.facebook, label: "Facebook" },
-    store.instagram && { icon: Instagram, href: store.instagram, label: "Instagram" },
-    whatsappDigits && {
+    { icon: Facebook, href: store.facebook || "https://www.facebook.com", label: "Facebook" },
+    { icon: Instagram, href: store.instagram || "https://www.instagram.com", label: "Instagram" },
+    {
       icon: MessageCircle,
-      href: `https://wa.me/${whatsappDigits}`,
+      href: whatsappDigits ? `https://wa.me/${whatsappDigits}` : "https://www.whatsapp.com",
       label: "WhatsApp",
     },
-    store.youtube && { icon: Youtube, href: store.youtube, label: "YouTube" },
-    store.tiktok && { icon: Music2, href: store.tiktok, label: "TikTok" },
-    store.linkedin && { icon: Linkedin, href: store.linkedin, label: "LinkedIn" },
-    store.twitter && { icon: Twitter, href: store.twitter, label: "X / Twitter" },
-  ].filter(Boolean) as { icon: typeof Facebook; href: string; label: string }[];
+    { icon: Youtube, href: store.youtube || "https://www.youtube.com", label: "YouTube" },
+    ...(store.tiktok ? [{ icon: Music2, href: store.tiktok, label: "TikTok" }] : []),
+    ...(store.linkedin ? [{ icon: Linkedin, href: store.linkedin, label: "LinkedIn" }] : []),
+    ...(store.twitter ? [{ icon: Twitter, href: store.twitter, label: "X / Twitter" }] : []),
+  ];
+
   return (
     <footer className="bg-black text-foreground/80 mt-auto border-t border-border">
       {/* Bandeau confiance */}
@@ -62,16 +66,60 @@ export async function Footer() {
       </div>
 
       <div className="mx-auto max-w-7xl px-4 py-12 grid gap-10 md:grid-cols-3">
-        {/* Magasin */}
+        {/* Colonne 1 : Logo + description + réseaux sociaux toujours visibles */}
         <div>
           <LogoFull className="mb-5" />
-          <p className="text-sm text-foreground-muted mb-4">
+          <p className="text-sm text-foreground-muted mb-5">
             Service de réparation et reconditionné — smartphones, tablettes et ordinateurs.
           </p>
+          <div className="flex items-center gap-2 flex-wrap">
+            {socials.map(({ icon: Icon, href, label }) => (
+              <a
+                key={label}
+                href={href}
+                target="_blank"
+                rel="noreferrer"
+                aria-label={label}
+                title={label}
+                className="h-9 w-9 grid place-items-center rounded-full bg-surface border border-border hover:bg-primary hover:border-primary transition"
+              >
+                <Icon className="h-4 w-4" />
+              </a>
+            ))}
+          </div>
+        </div>
+
+        {/* Colonne 2 : Service réparation + coordonnées (à côté) */}
+        <div>
+          <div className="font-semibold mb-4 text-foreground">Service réparation</div>
+          <ul className="space-y-2 text-sm text-foreground-muted mb-6">
+            <li>
+              <Link href="/reparations" className="hover:text-foreground transition">
+                Demande de devis
+              </Link>
+            </li>
+            <li>
+              <Link href="/reparations/suivi" className="hover:text-foreground transition">
+                Suivre ma réparation
+              </Link>
+            </li>
+            <li>
+              <Link href="/temoignages" className="hover:text-foreground transition">
+                Avis clients
+              </Link>
+            </li>
+          </ul>
+
+          <div className="font-semibold mb-3 text-foreground text-sm">Nous trouver</div>
           <ul className="space-y-2 text-sm text-foreground-muted">
             <li className="flex items-start gap-2">
               <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
-              <a href={store.gmaps} target="_blank" rel="noreferrer" className="hover:text-foreground transition">
+              <a
+                href={store.gmaps}
+                target="_blank"
+                rel="noreferrer"
+                className="hover:text-foreground transition"
+              >
                 {store.address}
               </a>
             </li>
@@ -94,52 +142,23 @@ export async function Footer() {
           </ul>
         </div>
 
-        <FooterCol title="Service réparation" links={[
-          ["/reparations", "Demande de devis"],
-          ["/reparations/suivi", "Suivre ma réparation"],
-          ["/temoignages", "Avis clients"],
-        ]} />
-
-        <FooterCol title="Aide & Compte" links={[
-          ["/compte", "Mon compte"],
-          ["/contact", "Contact"],
-          ["/reclamations", "Réclamations"],
-          ["/conditions", "CGV"],
-          ["/confidentialite", "Confidentialité"],
-          ["/mentions-legales", "Mentions légales"],
-        ]} />
+        {/* Colonne 3 : Aide & Compte */}
+        <FooterCol
+          title="Aide & Compte"
+          links={[
+            ["/compte", "Mon compte"],
+            ["/contact", "Contact"],
+            ["/reclamations", "Réclamations"],
+            ["/conditions", "CGV"],
+            ["/confidentialite", "Confidentialité"],
+            ["/mentions-legales", "Mentions légales"],
+          ]}
+        />
       </div>
 
-      {/* Réseaux sociaux */}
-      <div className="border-t border-border">
-        <div className="mx-auto max-w-7xl px-4 py-6 flex flex-col md:flex-row items-center justify-center md:justify-between gap-4">
-          <div className="flex items-center gap-3 flex-wrap justify-center">
-            {socials.length > 0 ? (
-              <>
-                <span className="text-sm text-foreground-muted">Suivez-nous</span>
-                {socials.map(({ icon: Icon, href, label }) => (
-                  <a
-                    key={label}
-                    href={href}
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label={label}
-                    className="h-9 w-9 grid place-items-center rounded-full bg-surface border border-border hover:bg-primary hover:border-primary transition"
-                  >
-                    <Icon className="h-4 w-4" />
-                  </a>
-                ))}
-              </>
-            ) : (
-              <span className="text-xs text-foreground-subtle">
-                Réseaux sociaux à configurer dans /admin/parametres
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="border-t border-border py-4 text-center text-xs text-foreground-subtle">
-          © {new Date().getFullYear()} {store.name}. Tous droits réservés.
-        </div>
+      {/* Copyright */}
+      <div className="border-t border-border py-4 text-center text-xs text-foreground-subtle">
+        © {new Date().getFullYear()} {store.name}. Tous droits réservés.
       </div>
     </footer>
   );
@@ -152,7 +171,9 @@ function FooterCol({ title, links }: { title: string; links: [string, string][] 
       <ul className="space-y-2 text-sm text-foreground-muted">
         {links.map(([href, label]) => (
           <li key={href}>
-            <Link href={href} className="hover:text-foreground transition">{label}</Link>
+            <Link href={href} className="hover:text-foreground transition">
+              {label}
+            </Link>
           </li>
         ))}
       </ul>
