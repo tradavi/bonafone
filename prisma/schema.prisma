@@ -1,0 +1,396 @@
+// Prisma schema — Plateforme E-Commerce & Réparations Bonafone
+// Dev: SQLite (file:./dev.db). Prod: bascule vers postgresql via DATABASE_URL.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// =====================================================
+// UTILISATEURS & AUTHENTIFICATION
+// =====================================================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  passwordHash  String?
+  firstName     String?
+  lastName      String?
+  phone         String?
+  role          String    @default("CLIENT") // CLIENT | TECHNICIEN | ADMIN
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  addresses    Address[]
+  orders       Order[]
+  repairs      Repair[]
+  reviews      Review[]
+  wishlist     WishlistItem[]
+  reclamations Reclamation[]
+  loyalty      LoyaltyAccount?
+}
+
+model Address {
+  id         String  @id @default(cuid())
+  userId     String
+  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label      String?
+  fullName   String
+  street     String
+  city       String
+  postalCode String
+  country    String  @default("BE")
+  phone      String?
+  isDefault  Boolean @default(false)
+}
+
+// =====================================================
+// CATALOGUE PRODUITS
+// =====================================================
+// category    : SMARTPHONE | TABLETTE | ACCESSOIRE | ORDINATEUR_PORTABLE
+// condition   : RECONDITIONNE | OCCASION (le magasin ne vend que de l'occasion/reconditionné)
+// grade       : A | B | C (occasions/reconditionnés)
+
+model Brand {
+  id       String    @id @default(cuid())
+  name     String    @unique
+  slug     String    @unique
+  logoUrl  String?
+  products Product[]
+}
+
+model Product {
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  name          String
+  description   String
+  category      String
+  condition     String   @default("RECONDITIONNE")
+  grade         String?
+  brandId       String
+  brand         Brand    @relation(fields: [brandId], references: [id])
+  price         Float
+  originalPrice Float?
+  stock         Int      @default(0)
+  lowStockAt    Int      @default(3)
+  warrantyMonths Int     @default(24)
+  imei          String?
+  barcode       String?  @unique  // EAN13 / UPC / Code 128 — utilisé pour scan en magasin
+  badge         String?  // "Nouveau" | "Promo" | "Top vente" | "Derniers articles"
+  primaryImage  String?  // URL ou data: URI
+  isFeatured    Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  images        ProductImage[]
+  specs         ProductSpec[]
+  orderItems    OrderItem[]
+  reviews       Review[]
+  wishlistItems WishlistItem[]
+
+  @@index([category, condition])
+  @@index([brandId])
+}
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String
+  alt       String?
+  position  Int     @default(0)
+}
+
+model ProductSpec {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  key       String
+  value     String
+  position  Int     @default(0)
+}
+
+model WishlistItem {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  addedAt   DateTime @default(now())
+
+  @@unique([userId, productId])
+}
+
+// =====================================================
+// COMMANDES
+// =====================================================
+// status        : PENDING | PAID | PREPARING | SHIPPED | DELIVERED | CANCELLED | REFUNDED
+// paymentMethod : CARD | PAYPAL | TRANSFER | ALMA | KLARNA
+
+model Order {
+  id              String        @id @default(cuid())
+  number          String        @unique
+  userId          String?
+  user            User?         @relation(fields: [userId], references: [id])
+  guestEmail      String?
+  status          String        @default("PENDING")
+  paymentMethod   String
+  subtotal        Float
+  shippingCost    Float
+  total           Float
+  currency        String        @default("EUR")
+  shippingAddress String        // JSON stringified
+  billingAddress  String?       // JSON stringified
+  carrier         String?
+  trackingNumber  String?
+  promoCode       String?
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  items OrderItem[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+  unitPrice Float
+  total     Float
+}
+
+// =====================================================
+// PROMOTIONS
+// =====================================================
+
+model Promotion {
+  id           String    @id @default(cuid())
+  code         String    @unique
+  description  String?
+  discountType String    // "percent" | "fixed"
+  discountValue Float
+  startsAt     DateTime?
+  endsAt       DateTime?
+  maxUses      Int?
+  usedCount    Int       @default(0)
+  isActive     Boolean   @default(true)
+}
+
+// =====================================================
+// MODULE RÉPARATIONS
+// =====================================================
+// deviceType  : SMARTPHONE | TABLETTE | ORDINATEUR_PORTABLE | AUTRE
+// status      : DEMANDE_DEVIS (formulaire en ligne, appareil pas encore déposé)
+//               | RECU | DIAGNOSTIC | DEVIS_VALIDE | EN_REPARATION | ATTENTE_PIECE
+//               | TERMINE | PRET_RECUPERATION | RESTITUE | IRREPARABLE
+// contactPref : TELEPHONE | EMAIL | WHATSAPP
+// depositedAt : null = simple demande en ligne ; set = appareil physiquement reçu en boutique
+
+model Repair {
+  id              String    @id @default(cuid())
+  number          String    @unique
+  userId          String?
+  user            User?     @relation(fields: [userId], references: [id])
+  customerName    String
+  customerEmail   String?
+  customerPhone   String
+  contactPref     String    @default("EMAIL")
+  deviceType      String
+  brand           String
+  model           String
+  imei            String?
+  issueType       String
+  issueDescription String
+  status          String    @default("RECU")
+  assignedToId    String?
+  estimatedCost   Float?
+  finalCost       Float?
+  estimatedReadyAt DateTime?
+  preferredDropAt DateTime?
+  depositedAt     DateTime?
+  internalNotes   String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  photos        RepairPhoto[]
+  statusHistory RepairStatusEvent[]
+  parts         RepairPart[]
+  invoices      RepairInvoice[]
+
+  @@index([status])
+  @@index([userId])
+}
+
+model RepairPhoto {
+  id       String  @id @default(cuid())
+  repairId String
+  repair   Repair  @relation(fields: [repairId], references: [id], onDelete: Cascade)
+  url      String
+  caption  String?
+}
+
+model RepairStatusEvent {
+  id        String   @id @default(cuid())
+  repairId  String
+  repair    Repair   @relation(fields: [repairId], references: [id], onDelete: Cascade)
+  status    String
+  comment   String?
+  notifiedClient Boolean @default(true)
+  createdAt DateTime @default(now())
+  createdBy String?
+}
+
+model RepairPart {
+  id          String   @id @default(cuid())
+  repairId    String
+  repair      Repair   @relation(fields: [repairId], references: [id], onDelete: Cascade)
+  name        String
+  supplier    String?
+  cost        Float
+  orderedAt   DateTime?
+  receivedAt  DateTime?
+  estimatedDays Int?
+}
+
+model RepairInvoice {
+  id        String   @id @default(cuid())
+  repairId  String
+  repair    Repair   @relation(fields: [repairId], references: [id], onDelete: Cascade)
+  type      String   // "devis" | "facture"
+  pdfUrl    String?
+  amount    Float
+  approved  Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+// =====================================================
+// AVIS & TÉMOIGNAGES
+// =====================================================
+// source : INTERNE | GOOGLE | FACEBOOK
+
+model Review {
+  id         String    @id @default(cuid())
+  source     String    @default("INTERNE")
+  externalId String?
+  userId     String?
+  user       User?     @relation(fields: [userId], references: [id])
+  productId  String?
+  product    Product?  @relation(fields: [productId], references: [id])
+  authorName String
+  rating     Int
+  title      String?
+  comment    String
+  isPublished Boolean  @default(true)
+  isFeatured Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+
+  @@index([source])
+  @@index([productId])
+}
+
+// =====================================================
+// CONTACT & RÉCLAMATIONS
+// =====================================================
+// type    : COMMANDE | REPARATION | LIVRAISON | PRODUIT_DEFECTUEUX | AUTRE
+// status  : OUVERTE | EN_COURS | RESOLUE | CLOSE
+
+model Reclamation {
+  id          String    @id @default(cuid())
+  number      String    @unique
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id])
+  email       String
+  phone       String?
+  type        String
+  orderRef    String?
+  description String
+  attachments String?   // JSON stringified [{ url, name }]
+  status      String    @default("OUVERTE")
+  assignedTo  String?
+  history     String?   // JSON stringified
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  phone     String?
+  subject   String
+  message   String
+  createdAt DateTime @default(now())
+}
+
+// =====================================================
+// FIDÉLITÉ
+// =====================================================
+
+model LoyaltyAccount {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  points    Int      @default(0)
+  tier      String   @default("bronze")
+  updatedAt DateTime @updatedAt
+}
+
+// =====================================================
+// NEWSLETTER
+// =====================================================
+
+model NewsletterSubscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+// =====================================================
+// PARAMÈTRES MAGASIN (singleton — id="singleton")
+// =====================================================
+
+model StoreSettings {
+  id        String   @id @default("singleton")
+  name      String?
+  tagline   String?
+  phone     String?
+  email     String?
+  address   String?
+  hours     String?
+  whatsapp  String?
+  gmaps     String?
+  facebook  String?
+  instagram String?
+  youtube   String?
+  tiktok    String?
+  linkedin  String?
+  twitter   String?
+  // Clés API — gérables depuis l'admin sans toucher au code
+  stripeSecretKey      String?
+  stripePublicKey      String?
+  stripeWebhookSecret  String?
+  brevoApiKey          String?
+  brevoFromEmail       String?
+  twilioAccountSid     String?
+  twilioAuthToken      String?
+  twilioFromNumber     String?
+  googleMapsApiKey     String?
+  googleClientId       String?
+  googleClientSecret   String?
+  facebookClientId     String?
+  facebookClientSecret String?
+  updatedAt DateTime @updatedAt
+}

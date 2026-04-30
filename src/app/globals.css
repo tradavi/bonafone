@@ -1,0 +1,145 @@
+@import "tailwindcss";
+
+:root {
+  /* Base sombre bleue nuit — gamme navy/midnight */
+  --background: #0a1024;
+  --surface: #111a36;
+  --surface-2: #1a2547;
+  --surface-3: #233361;
+  --border: #1e2c52;
+  --border-strong: #2e4380;
+
+  /* Texte */
+  --foreground: #f5f5f7;
+  --foreground-muted: #a8b2cf;
+  --foreground-subtle: #7682a8;
+
+  /* Rouge signature — vif, premium (identique en dark/light) */
+  --primary: #ff2d3a;
+  --primary-strong: #ff0a1f;
+  --primary-dark: #c4111e;
+  --primary-glow: rgba(255, 45, 58, 0.35);
+
+  /* Sémantique (gardés sobres) */
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+
+  /* Compat ancien token "muted" et "accent" (= rouge) */
+  --muted: var(--surface-2);
+  --accent: var(--primary);
+
+  /* Panneaux sombres dédiés (top-bar, footer) — légèrement plus profonds que background */
+  --panel-dark: #060c1f;
+  --panel-dark-text: #d1d5e8;
+}
+
+/* Thème clair — même rouge signature, fonds clairs, contraste élevé */
+:root[data-theme="light"] {
+  --background: #fafafa;
+  --surface: #ffffff;
+  --surface-2: #f4f4f5;
+  --surface-3: #e4e4e7;
+  --border: #e4e4e7;
+  --border-strong: #d4d4d8;
+
+  --foreground: #18181b;
+  --foreground-muted: #52525b;
+  --foreground-subtle: #71717a;
+
+  /* Le rouge reste identique — c'est la couleur signature */
+  --primary: #ef2333;
+  --primary-strong: #c70d1c;
+  --primary-dark: #a30a16;
+  --primary-glow: rgba(239, 35, 51, 0.25);
+
+  /* Top-bar et footer : on garde la couleur dark même en thème clair */
+  --panel-dark: #0a1024;
+  --panel-dark-text: #d1d5e8;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-foreground-muted: var(--foreground-muted);
+  --color-foreground-subtle: var(--foreground-subtle);
+
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+
+  --color-primary: var(--primary);
+  --color-primary-strong: var(--primary-strong);
+  --color-primary-dark: var(--primary-dark);
+
+  --color-accent: var(--accent);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+html, body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+body {
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Sélection en rouge */
+::selection {
+  background: var(--primary);
+  color: white;
+}
+
+/* Scrollbar dark */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
+
+/* Focus ring rouge */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Inputs/selects par défaut sur dark, override en clair */
+input, textarea, select {
+  color-scheme: dark;
+}
+:root[data-theme="light"] input,
+:root[data-theme="light"] textarea,
+:root[data-theme="light"] select {
+  color-scheme: light;
+}
+
+/* Le top-bar et le footer utilisent la couleur dark dans les deux thèmes. */
+.bg-black {
+  background-color: var(--panel-dark) !important;
+  color: var(--panel-dark-text);
+}
