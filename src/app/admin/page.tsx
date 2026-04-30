@@ -8,6 +8,7 @@ import {
   ArrowRight,
   Star,
   MessageSquare,
+  Smile,
 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 import {
@@ -57,6 +58,12 @@ export default async function AdminDashboard() {
   ]);
 
   const KPI = [
+    {
+      label: "Clients heureux",
+      value: kpis.happyClientsCount.toString(),
+      icon: Smile,
+      hint: "Réparations terminées & restituées",
+    },
     {
       label: "Réparations actives",
       value: kpis.activeRepairsCount.toString(),
@@ -139,7 +146,7 @@ export default async function AdminDashboard() {
 
       {/* KPI réparations + avis */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-        {KPI.map(({ label, value, icon: Icon }) => (
+        {KPI.map(({ label, value, icon: Icon, hint }) => (
           <div
             key={label}
             className="bg-surface border border-border rounded-2xl p-5 hover:border-primary transition"
@@ -151,6 +158,9 @@ export default async function AdminDashboard() {
             </div>
             <div className="text-2xl font-extrabold">{value}</div>
             <div className="text-xs text-foreground-muted mt-1">{label}</div>
+            {hint && (
+              <div className="text-[10px] text-foreground-subtle mt-0.5">{hint}</div>
+            )}
           </div>
         ))}
       </div>

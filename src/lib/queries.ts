@@ -541,6 +541,7 @@ export async function getAdminKpis() {
 export async function getRepairsDashboardKpis() {
   const [
     activeRepairsCount,
+    happyClientsCount,
     repairsAgg,
     repairStatusGroup,
     reviewAgg,
@@ -551,6 +552,8 @@ export async function getRepairsDashboardKpis() {
     prisma.repair.count({
       where: { status: { notIn: ["DEMANDE_DEVIS", "RESTITUE", "IRREPARABLE"] } },
     }),
+    // Clients heureux = réparations terminées et restituées au client
+    prisma.repair.count({ where: { status: "RESTITUE" } }),
     prisma.repair.aggregate({
       _avg: { finalCost: true },
       _count: true,
@@ -571,6 +574,7 @@ export async function getRepairsDashboardKpis() {
 
   return {
     activeRepairsCount,
+    happyClientsCount,
     totalRepairs: repairsAgg._count,
     avgFinalCost: repairsAgg._avg.finalCost ?? 0,
     repairsByStatus: repairStatusGroup.map((g) => ({
