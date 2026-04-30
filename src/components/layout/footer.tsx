@@ -8,10 +8,10 @@ import {
   Phone,
   Mail,
   Clock,
-  CreditCard,
-  Truck,
   ShieldCheck,
   RotateCcw,
+  Cog,
+  BadgeCheck,
   Music2,
   Linkedin,
   Twitter,
@@ -40,10 +40,10 @@ export async function Footer() {
       <div className="border-b border-border">
         <div className="mx-auto max-w-7xl px-4 py-8 grid grid-cols-2 md:grid-cols-4 gap-6">
           {[
-            { icon: Truck, title: "Livraison rapide", text: "Colissimo, Chronopost, Mondial Relay" },
-            { icon: ShieldCheck, title: "Garantie incluse", text: "12 à 24 mois selon produit" },
-            { icon: RotateCcw, title: "Retours simples", text: "14 jours pour changer d'avis" },
-            { icon: CreditCard, title: "Paiement 4x", text: "CB, PayPal, Alma, Klarna" },
+            { icon: Cog, title: "Pièces de rechange de qualité", text: "Composants d'origine ou compatibles testés" },
+            { icon: ShieldCheck, title: "Garantie incluse", text: "Jusqu'à 12 mois selon réparation" },
+            { icon: RotateCcw, title: "Retour simple", text: "En cas de problème, on reprend le dossier" },
+            { icon: BadgeCheck, title: "Techniciens confirmés", text: "Expérience prouvée toutes marques" },
           ].map(({ icon: Icon, title, text }) => (
             <div key={title} className="flex items-start gap-3">
               <div className="h-10 w-10 grid place-items-center rounded-lg bg-primary/10 border border-primary/20 shrink-0">
