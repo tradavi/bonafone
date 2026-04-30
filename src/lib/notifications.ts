@@ -239,6 +239,21 @@ export function tplReclamationReceived(opts: { number: string }) {
   return { subject, html };
 }
 
+export function tplReclamationReply(opts: {
+  number: string;
+  message: string;
+}) {
+  const subject = `Réponse à votre réclamation ${opts.number}`;
+  // Le message admin est inséré tel quel (whitespace préservé via white-space:pre-line)
+  const html = emailLayout(`
+    <p>Bonjour,</p>
+    <p>Concernant votre réclamation <strong style="color:#ef4444;font-family:ui-monospace,Menlo,monospace">${opts.number}</strong>, voici notre réponse :</p>
+    <div style="background:#1f1f1f;border:1px solid #262626;border-radius:10px;padding:14px 18px;margin:16px 0;white-space:pre-line">${escapeHtml(opts.message)}</div>
+    <p style="color:#a3a3a3;font-size:13px">Pour toute précision, n'hésitez pas à répondre à cet email.</p>
+  `);
+  return { subject, html };
+}
+
 // =====================================================
 // HELPERS
 // =====================================================

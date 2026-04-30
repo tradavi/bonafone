@@ -318,10 +318,11 @@ model Reclamation {
   orderRef    String?
   description String
   attachments String?   // JSON stringified [{ url, name }]
-  status      String    @default("OUVERTE")
-  assignedTo  String?
-  history     String?   // JSON stringified
-  createdAt   DateTime  @default(now())
+  status         String   @default("OUVERTE")
+  assignedTo     String?
+  internalNotes  String?
+  history        String?   // JSON stringified : événements (status changes, emails envoyés)
+  createdAt      DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }
 

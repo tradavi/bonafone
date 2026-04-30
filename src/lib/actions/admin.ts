@@ -7,6 +7,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { generateNextRepairNumber } from "@/lib/queries";
 import { saveUploadedImage, isImageFile } from "@/lib/uploads";
+import { sendEmail, tplReclamationReply } from "@/lib/notifications";
 
 async function requireAdmin() {
   const session = await auth();
@@ -491,6 +492,7 @@ const ReclamationStatusSchema = z.object({
   id: z.string().min(1),
   status: z.enum(["OUVERTE", "EN_COURS", "RESOLUE", "CLOSE"]),
   assignedTo: z.string().max(120).optional(),
+  internalNotes: z.string().max(5000).optional(),
 });
 
 export async function updateReclamationStatus(formData: FormData) {
@@ -503,8 +505,65 @@ export async function updateReclamationStatus(formData: FormData) {
     data: {
       status: parsed.data.status,
       assignedTo: parsed.data.assignedTo || null,
+      internalNotes: parsed.data.internalNotes?.trim() || null,
     },
   });
+  revalidatePath("/admin/reclamations");
+}
+
+const ReclamationReplySchema = z.object({
+  id: z.string().min(1),
+  message: z.string().min(5, "Message trop court").max(5000),
+});
+
+export async function sendReclamationReply(formData: FormData) {
+  await requireAdmin();
+  const raw = readForm(formData);
+  const parsed = ReclamationReplySchema.safeParse(raw);
+  if (!parsed.success) throw new Error(parsed.error.errors[0]?.message);
+
+  const recl = await prisma.reclamation.findUnique({
+    where: { id: parsed.data.id },
+    select: { id: true, number: true, email: true, history: true, status: true },
+  });
+  if (!recl) throw new Error("Réclamation introuvable");
+  if (!recl.email) throw new Error("Aucun email client renseigné");
+
+  const tpl = tplReclamationReply({
+    number: recl.number,
+    message: parsed.data.message,
+  });
+  const result = await sendEmail({
+    to: recl.email,
+    subject: tpl.subject,
+    html: tpl.html,
+  });
+
+  // Log dans history (JSON stringified)
+  let history: Array<{ at: string; type: string; message: string }> = [];
+  if (recl.history) {
+    try {
+      const parsed = JSON.parse(recl.history);
+      if (Array.isArray(parsed)) history = parsed;
+    } catch {
+      history = [];
+    }
+  }
+  history.push({
+    at: new Date().toISOString(),
+    type: result.skipped ? "REPLY_DRAFT" : "REPLY_SENT",
+    message: parsed.data.message,
+  });
+
+  // Si la réclamation était OUVERTE, on la passe en EN_COURS automatiquement
+  await prisma.reclamation.update({
+    where: { id: recl.id },
+    data: {
+      history: JSON.stringify(history),
+      status: recl.status === "OUVERTE" ? "EN_COURS" : recl.status,
+    },
+  });
+
   revalidatePath("/admin/reclamations");
 }
 
