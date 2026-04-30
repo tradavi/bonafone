@@ -49,7 +49,7 @@ export function RepairHub() {
               </span>
             </h1>
             <p className="text-lg text-foreground-muted mb-8 max-w-md leading-relaxed">
-              Devis gratuit en 24h. Réparation rapide avec garantie 6 mois. Suivi en ligne en temps réel.
+              Devis gratuit en 24h. Réparation rapide avec garantie jusqu&apos;à 12 mois. Suivi en ligne en temps réel.
             </p>
             <div className="flex flex-wrap gap-3">
               <Link
@@ -71,7 +71,7 @@ export function RepairHub() {
           <div className="grid grid-cols-3 gap-3">
             {[
               { icon: Clock, label: "Devis sous 24h" },
-              { icon: ShieldCheck, label: "Garantie 6 mois" },
+              { icon: ShieldCheck, label: "Garantie 12 mois" },
               { icon: Wrench, label: "Toutes marques" },
             ].map(({ icon: Icon, label }) => (
               <div key={label} className="bg-surface border border-border rounded-2xl p-5 text-center">

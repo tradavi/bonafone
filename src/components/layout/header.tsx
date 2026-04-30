@@ -50,14 +50,17 @@ export async function Header() {
           {/* Actions */}
           <div className="flex items-center gap-1 md:gap-2 ml-auto">
             <UserMenu user={user} />
-            <Link
-              href="/compte/wishlist"
-              className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg hover:bg-surface hover:text-primary transition"
-            >
-              <Heart className="h-5 w-5" />
-              <span className="text-[10px] hidden md:block">Favoris</span>
-            </Link>
-            <CartCounter />
+            {/* Favoris + panier cachés sur la home (page service réparation) */}
+            <HideOnHome>
+              <Link
+                href="/compte/wishlist"
+                className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg hover:bg-surface hover:text-primary transition"
+              >
+                <Heart className="h-5 w-5" />
+                <span className="text-[10px] hidden md:block">Favoris</span>
+              </Link>
+              <CartCounter />
+            </HideOnHome>
           </div>
         </div>
 

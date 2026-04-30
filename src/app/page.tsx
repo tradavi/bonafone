@@ -1,7 +1,6 @@
 export const revalidate = 60;
 
 import { RepairHub } from "@/components/home/repair-hub";
-import { Categories } from "@/components/home/categories";
 import { RepairCTA } from "@/components/home/repair-cta";
 import { Testimonials } from "@/components/home/testimonials";
 import { Brands } from "@/components/home/brands";
@@ -13,9 +12,8 @@ export default function Home() {
   return (
     <>
       <JsonLd data={localBusinessSchema()} />
-      {/* Page principale = service de réparation (remplace Hero + FeaturedProducts) */}
+      {/* Page principale = service de réparation */}
       <RepairHub />
-      <Categories />
       <RepairCTA />
       <Testimonials />
       <Brands />
