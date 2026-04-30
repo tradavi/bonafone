@@ -146,8 +146,8 @@ export default async function AdminSettingsPage({ searchParams }: Props) {
           <div className="grid md:grid-cols-2 gap-4">
             <Field label="Facebook" name="facebook" defaultValue={settings.facebook} icon={Facebook} type="url" placeholder="https://facebook.com/votrepage" />
             <Field label="Instagram" name="instagram" defaultValue={settings.instagram} icon={Instagram} type="url" placeholder="https://instagram.com/votrepage" />
-            <Field label="YouTube" name="youtube" defaultValue={settings.youtube} icon={Youtube} type="url" placeholder="https://youtube.com/@votrechaine" />
             <Field label="TikTok" name="tiktok" defaultValue={settings.tiktok} icon={Music2} type="url" placeholder="https://tiktok.com/@votrecompte" />
+            <Field label="YouTube" name="youtube" defaultValue={settings.youtube} icon={Youtube} type="url" placeholder="https://youtube.com/@votrechaine" />
             <Field label="LinkedIn" name="linkedin" defaultValue={settings.linkedin} icon={Linkedin} type="url" placeholder="https://linkedin.com/company/..." />
             <Field label="X / Twitter" name="twitter" defaultValue={settings.twitter} icon={Twitter} type="url" placeholder="https://x.com/votrecompte" />
           </div>

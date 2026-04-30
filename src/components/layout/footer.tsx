@@ -3,7 +3,6 @@ import {
   Facebook,
   Instagram,
   Youtube,
-  MessageCircle,
   MapPin,
   Phone,
   Mail,
@@ -21,25 +20,18 @@ import { LogoFull } from "@/components/ui/logo";
 
 export async function Footer() {
   const store = await getStoreSettings();
-  const whatsappDigits = store.whatsapp.replace(/\D/g, "");
 
-  // Réseaux sociaux : on affiche TOUJOURS les 4 principaux (Facebook,
-  // Instagram, WhatsApp, YouTube). URL admin si configurée, sinon homepage
-  // générique du service. Les autres réseaux (TikTok/LinkedIn/X) ne s'affichent
-  // que s'ils sont configurés.
+  // Réseaux sociaux : uniquement les liens introduits depuis le dashboard
+  // admin (/admin/parametres). WhatsApp est volontairement absent (il est
+  // accessible via la TopBar et la page contact) — TikTok le remplace ici.
   const socials: { icon: typeof Facebook; href: string; label: string }[] = [
-    { icon: Facebook, href: store.facebook || "https://www.facebook.com", label: "Facebook" },
-    { icon: Instagram, href: store.instagram || "https://www.instagram.com", label: "Instagram" },
-    {
-      icon: MessageCircle,
-      href: whatsappDigits ? `https://wa.me/${whatsappDigits}` : "https://www.whatsapp.com",
-      label: "WhatsApp",
-    },
-    { icon: Youtube, href: store.youtube || "https://www.youtube.com", label: "YouTube" },
-    ...(store.tiktok ? [{ icon: Music2, href: store.tiktok, label: "TikTok" }] : []),
-    ...(store.linkedin ? [{ icon: Linkedin, href: store.linkedin, label: "LinkedIn" }] : []),
-    ...(store.twitter ? [{ icon: Twitter, href: store.twitter, label: "X / Twitter" }] : []),
-  ];
+    store.facebook && { icon: Facebook, href: store.facebook, label: "Facebook" },
+    store.instagram && { icon: Instagram, href: store.instagram, label: "Instagram" },
+    store.tiktok && { icon: Music2, href: store.tiktok, label: "TikTok" },
+    store.youtube && { icon: Youtube, href: store.youtube, label: "YouTube" },
+    store.linkedin && { icon: Linkedin, href: store.linkedin, label: "LinkedIn" },
+    store.twitter && { icon: Twitter, href: store.twitter, label: "X / Twitter" },
+  ].filter(Boolean) as { icon: typeof Facebook; href: string; label: string }[];
 
   return (
     <footer className="bg-black text-foreground/80 mt-auto border-t border-border">
