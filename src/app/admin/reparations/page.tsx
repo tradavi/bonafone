@@ -1,6 +1,10 @@
 import Link from "next/link";
-import { Plus, Search, ArrowRight, FileText } from "lucide-react";
+import { Plus, ArrowRight, FileText } from "lucide-react";
 import { getAllRepairs, countDevisRequests } from "@/lib/queries";
+import {
+  RepairsSearchTable,
+  type RepairRow,
+} from "@/components/admin/repairs-search-table";
 
 export const metadata = { title: "Réparations" };
 export const dynamic = "force-dynamic";
@@ -17,44 +21,31 @@ const STATUSES = [
   { code: "IRREPARABLE", label: "Irréparable" },
 ];
 
-const STATUS_STYLES: Record<string, string> = {
-  RECU: "bg-blue-500/10 text-blue-400 border-blue-500/30",
-  DIAGNOSTIC: "bg-purple-500/10 text-purple-400 border-purple-500/30",
-  DEVIS_VALIDE: "bg-cyan-500/10 text-cyan-400 border-cyan-500/30",
-  EN_REPARATION: "bg-amber-500/10 text-amber-400 border-amber-500/30",
-  ATTENTE_PIECE: "bg-orange-500/10 text-orange-400 border-orange-500/30",
-  TERMINE: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
-  PRET_RECUPERATION: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40",
-  RESTITUE: "bg-zinc-500/10 text-zinc-400 border-zinc-500/30",
-  IRREPARABLE: "bg-primary/10 text-primary border-primary/30",
-};
-
-type Props = { searchParams: Promise<{ q?: string; status?: string; archived?: string }> };
+type Props = { searchParams: Promise<{ status?: string; archived?: string }> };
 
 export default async function AdminReparationsPage({ searchParams }: Props) {
-  const { q = "", status = "", archived } = await searchParams;
+  const { status = "", archived } = await searchParams;
   const [all, devisCount] = await Promise.all([getAllRepairs(), countDevisRequests()]);
   const showArchived = archived === "1";
 
-  const filtered = all
+  const filtered: RepairRow[] = all
     .filter((r) =>
       showArchived
         ? r.status === "RESTITUE" || r.status === "IRREPARABLE"
         : r.status !== "RESTITUE" && r.status !== "IRREPARABLE",
     )
     .filter((r) => (status ? r.status === status : true))
-    .filter((r) => {
-      if (!q) return true;
-      const needle = q.toLowerCase();
-      return (
-        r.number.toLowerCase().includes(needle) ||
-        r.customerName.toLowerCase().includes(needle) ||
-        (r.customerEmail ?? "").toLowerCase().includes(needle) ||
-        r.brand.toLowerCase().includes(needle) ||
-        r.model.toLowerCase().includes(needle) ||
-        r.issueType.toLowerCase().includes(needle)
-      );
-    });
+    .map((r) => ({
+      id: r.id,
+      number: r.number,
+      customerName: r.customerName,
+      customerEmail: r.customerEmail,
+      brand: r.brand,
+      model: r.model,
+      issueType: r.issueType,
+      status: r.status,
+      depositedAtIso: r.depositedAt ? r.depositedAt.toISOString() : null,
+    }));
 
   const activeCount = all.filter(
     (r) => r.status !== "RESTITUE" && r.status !== "IRREPARABLE",
@@ -106,63 +97,34 @@ export default async function AdminReparationsPage({ searchParams }: Props) {
 
       <div className="bg-surface border border-border rounded-2xl overflow-hidden">
         <div className="p-4 border-b border-border space-y-3">
-          <div className="flex items-center gap-3 flex-wrap">
-            <form
-              action="/admin/reparations"
-              method="get"
-              className="flex-1 min-w-[240px] flex gap-2"
+          {/* Onglets Actifs / Archivés */}
+          <div className="inline-flex rounded-lg border border-border overflow-hidden text-sm">
+            <Link
+              href="/admin/reparations"
+              className={`px-3 py-2 ${
+                !showArchived
+                  ? "bg-primary text-white"
+                  : "bg-surface-2 hover:bg-surface text-foreground-muted"
+              }`}
             >
-              {status && <input type="hidden" name="status" value={status} />}
-              {showArchived && <input type="hidden" name="archived" value="1" />}
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-foreground-muted" />
-                <input
-                  name="q"
-                  defaultValue={q}
-                  placeholder="Numéro, code-barres (REP-…), client, email, appareil…"
-                  autoComplete="off"
-                  className="w-full pl-9 pr-3.5 py-2 bg-surface-2 border border-border rounded-lg text-sm focus:outline-none focus:border-primary placeholder:text-foreground-subtle"
-                />
-              </div>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-primary hover:bg-primary-strong text-white rounded-lg text-sm font-semibold transition flex items-center gap-1.5"
-              >
-                <Search className="h-3.5 w-3.5" />
-                Rechercher
-              </button>
-              {q && (
-                <Link
-                  href={buildUrl({ status, archived: showArchived ? "1" : undefined })}
-                  className="px-3 py-2 bg-surface-2 border border-border hover:border-primary rounded-lg text-sm text-foreground-muted hover:text-foreground transition"
-                >
-                  Effacer
-                </Link>
-              )}
-            </form>
-            <div className="inline-flex rounded-lg border border-border overflow-hidden text-sm">
-              <Link
-                href={buildUrl({ q })}
-                className={`px-3 py-2 ${
-                  !showArchived ? "bg-primary text-white" : "bg-surface-2 hover:bg-surface text-foreground-muted"
-                }`}
-              >
-                Actifs
-              </Link>
-              <Link
-                href={buildUrl({ q, archived: "1" })}
-                className={`px-3 py-2 ${
-                  showArchived ? "bg-primary text-white" : "bg-surface-2 hover:bg-surface text-foreground-muted"
-                }`}
-              >
-                Archivés
-              </Link>
-            </div>
+              Actifs
+            </Link>
+            <Link
+              href="/admin/reparations?archived=1"
+              className={`px-3 py-2 ${
+                showArchived
+                  ? "bg-primary text-white"
+                  : "bg-surface-2 hover:bg-surface text-foreground-muted"
+              }`}
+            >
+              Archivés
+            </Link>
           </div>
 
+          {/* Filtres par statut */}
           <div className="flex items-center gap-1.5 flex-wrap">
             <Link
-              href={buildUrl({ q, archived: showArchived ? "1" : undefined })}
+              href={buildUrl({ archived: showArchived ? "1" : undefined })}
               className={`text-xs px-2.5 py-1 rounded-lg border transition ${
                 !status
                   ? "bg-primary text-white border-primary"
@@ -178,7 +140,7 @@ export default async function AdminReparationsPage({ searchParams }: Props) {
             ).map((s) => (
               <Link
                 key={s.code}
-                href={buildUrl({ q, status: s.code, archived: showArchived ? "1" : undefined })}
+                href={buildUrl({ status: s.code, archived: showArchived ? "1" : undefined })}
                 className={`text-xs px-2.5 py-1 rounded-lg border transition ${
                   status === s.code
                     ? "bg-primary text-white border-primary"
@@ -191,71 +153,8 @@ export default async function AdminReparationsPage({ searchParams }: Props) {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-surface-2">
-              <tr className="text-left text-xs uppercase tracking-wider text-foreground-muted">
-                <th className="px-4 py-3 font-semibold">N°</th>
-                <th className="px-4 py-3 font-semibold">Client</th>
-                <th className="px-4 py-3 font-semibold">Appareil</th>
-                <th className="px-4 py-3 font-semibold">Panne</th>
-                <th className="px-4 py-3 font-semibold">Statut</th>
-                <th className="px-4 py-3 font-semibold">Déposé</th>
-                <th className="px-4 py-3 font-semibold w-12"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-foreground-muted">
-                    Aucun dossier trouvé.
-                  </td>
-                </tr>
-              )}
-              {filtered.map((r) => (
-                <tr key={r.id} className="border-t border-border hover:bg-surface-2 transition group">
-                  <td className="px-4 py-3 font-mono text-xs">
-                    <Link
-                      href={`/admin/reparations/${r.number}`}
-                      className="text-primary hover:underline"
-                    >
-                      {r.number}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="font-medium">{r.customerName}</div>
-                    <div className="text-xs text-foreground-muted">{r.customerEmail}</div>
-                  </td>
-                  <td className="px-4 py-3">
-                    {r.brand} {r.model}
-                  </td>
-                  <td className="px-4 py-3 text-foreground-muted">{r.issueType}</td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`px-2 py-0.5 text-[10px] font-bold rounded border ${
-                        STATUS_STYLES[r.status] ?? STATUS_STYLES.RECU
-                      }`}
-                    >
-                      {r.status.replace(/_/g, " ")}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-foreground-muted text-xs">
-                    {r.depositedAt ? r.depositedAt.toLocaleDateString("fr-FR") : "—"}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <Link
-                      href={`/admin/reparations/${r.number}`}
-                      className="inline-flex items-center justify-center h-8 w-8 rounded-lg hover:bg-primary/10 hover:text-primary transition"
-                      aria-label="Détail"
-                    >
-                      <ArrowRight className="h-4 w-4" />
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {/* Recherche temps réel + tableau (client component) */}
+        <RepairsSearchTable items={filtered} />
       </div>
     </div>
   );
