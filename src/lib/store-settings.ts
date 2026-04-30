@@ -77,8 +77,9 @@ type RawRow = Partial<Record<(typeof ALL_FIELDS)[number], string | null>>;
 async function loadRow(): Promise<RawRow | null> {
   try {
     const cols = ALL_FIELDS.map((f) => `"${f}"`).join(", ");
+    // Postgres : placeholders $1, $2... (pas ? comme SQLite/MySQL)
     const rows = await prisma.$queryRawUnsafe<RawRow[]>(
-      `SELECT ${cols} FROM StoreSettings WHERE id = ? LIMIT 1`,
+      `SELECT ${cols} FROM "StoreSettings" WHERE "id" = $1 LIMIT 1`,
       SINGLETON_ID,
     );
     return rows[0] ?? null;
@@ -201,7 +202,8 @@ export async function upsertStoreSettings(
     }),
     new Date().toISOString(),
   ];
-  const insertPlaceholders = insertValues.map(() => "?").join(", ");
+  // Postgres : placeholders $1, $2... (pas ? comme SQLite/MySQL)
+  const insertPlaceholders = insertValues.map((_, i) => `$${i + 1}`).join(", ");
 
   // Pour le DO UPDATE on ne touche qu'aux colonnes effectivement fournies.
   const updateAssignments = [
@@ -210,9 +212,9 @@ export async function upsertStoreSettings(
   ].join(", ");
 
   const sql = `
-    INSERT INTO StoreSettings (${insertCols.map((c) => `"${c}"`).join(", ")})
+    INSERT INTO "StoreSettings" (${insertCols.map((c) => `"${c}"`).join(", ")})
     VALUES (${insertPlaceholders})
-    ON CONFLICT(id) DO UPDATE SET ${updateAssignments}
+    ON CONFLICT ("id") DO UPDATE SET ${updateAssignments}
   `;
 
   await prisma.$executeRawUnsafe(sql, ...insertValues);
