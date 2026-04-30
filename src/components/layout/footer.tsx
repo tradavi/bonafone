@@ -65,7 +65,7 @@ export async function Footer() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl px-4 py-12 grid gap-10 md:grid-cols-3">
+      <div className="mx-auto max-w-7xl px-4 py-12 grid gap-10 md:grid-cols-2 lg:grid-cols-4">
         {/* Colonne 1 : Logo + description + réseaux sociaux toujours visibles */}
         <div>
           <LogoFull className="mb-5" />
@@ -89,28 +89,19 @@ export async function Footer() {
           </div>
         </div>
 
-        {/* Colonne 2 : Service réparation + coordonnées (à côté) */}
-        <div>
-          <div className="font-semibold mb-4 text-foreground">Service réparation</div>
-          <ul className="space-y-2 text-sm text-foreground-muted mb-6">
-            <li>
-              <Link href="/reparations" className="hover:text-foreground transition">
-                Demande de devis
-              </Link>
-            </li>
-            <li>
-              <Link href="/reparations/suivi" className="hover:text-foreground transition">
-                Suivre ma réparation
-              </Link>
-            </li>
-            <li>
-              <Link href="/temoignages" className="hover:text-foreground transition">
-                Avis clients
-              </Link>
-            </li>
-          </ul>
+        {/* Colonne 2 : Service réparation */}
+        <FooterCol
+          title="Service réparation"
+          links={[
+            ["/reparations", "Demande de devis"],
+            ["/reparations/suivi", "Suivre ma réparation"],
+            ["/temoignages", "Avis clients"],
+          ]}
+        />
 
-          <div className="font-semibold mb-3 text-foreground text-sm">Nous trouver</div>
+        {/* Colonne 3 : Nous trouver — adresse, tél, email, horaires */}
+        <div>
+          <div className="font-semibold mb-4 text-foreground">Nous trouver</div>
           <ul className="space-y-2 text-sm text-foreground-muted">
             <li className="flex items-start gap-2">
               <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
@@ -142,7 +133,7 @@ export async function Footer() {
           </ul>
         </div>
 
-        {/* Colonne 3 : Aide & Compte */}
+        {/* Colonne 4 : Aide & Compte */}
         <FooterCol
           title="Aide & Compte"
           links={[

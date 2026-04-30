@@ -446,7 +446,7 @@ export default async function AdminRepairDetailPage({ params }: Props) {
               </div>
               <div>
                 <label className="block text-xs text-foreground-muted mb-1">Fournisseur</label>
-                <input name="supplier" placeholder="iFixit, etc." className={inputCls} />
+                <input name="supplier" placeholder="DVK, etc." className={inputCls} />
               </div>
               <div>
                 <label className="block text-xs text-foreground-muted mb-1">Coût (€)</label>
