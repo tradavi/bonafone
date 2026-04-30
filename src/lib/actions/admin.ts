@@ -7,7 +7,11 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { generateNextRepairNumber } from "@/lib/queries";
 import { saveUploadedImage, isImageFile } from "@/lib/uploads";
-import { sendEmail, tplReclamationReply } from "@/lib/notifications";
+import {
+  sendEmail,
+  tplReclamationReply,
+  tplContactReply,
+} from "@/lib/notifications";
 
 async function requireAdmin() {
   const session = await auth();
@@ -576,6 +580,77 @@ export async function deleteContactMessage(formData: FormData) {
   const id = formData.get("id");
   if (typeof id !== "string") throw new Error("ID manquant");
   await prisma.contactMessage.delete({ where: { id } });
+  revalidatePath("/admin/messages");
+}
+
+const ContactNotesSchema = z.object({
+  id: z.string().min(1),
+  internalNotes: z.string().max(5000).optional(),
+});
+
+export async function updateContactNotes(formData: FormData) {
+  await requireAdmin();
+  const raw = readForm(formData);
+  const parsed = ContactNotesSchema.safeParse(raw);
+  if (!parsed.success) throw new Error(parsed.error.errors[0]?.message);
+  await prisma.contactMessage.update({
+    where: { id: parsed.data.id },
+    data: { internalNotes: parsed.data.internalNotes?.trim() || null },
+  });
+  revalidatePath("/admin/messages");
+}
+
+const ContactReplySchema = z.object({
+  id: z.string().min(1),
+  message: z.string().min(5, "Message trop court").max(5000),
+});
+
+export async function replyToContactMessage(formData: FormData) {
+  await requireAdmin();
+  const raw = readForm(formData);
+  const parsed = ContactReplySchema.safeParse(raw);
+  if (!parsed.success) throw new Error(parsed.error.errors[0]?.message);
+
+  const msg = await prisma.contactMessage.findUnique({
+    where: { id: parsed.data.id },
+    select: { id: true, name: true, email: true, subject: true, history: true },
+  });
+  if (!msg) throw new Error("Message introuvable");
+  if (!msg.email) throw new Error("Aucun email destinataire");
+
+  const tpl = tplContactReply({
+    customerName: msg.name,
+    subject: msg.subject,
+    message: parsed.data.message,
+  });
+  const result = await sendEmail({
+    to: msg.email,
+    toName: msg.name,
+    subject: tpl.subject,
+    html: tpl.html,
+  });
+
+  // Log dans history (JSON stringified)
+  let history: Array<{ at: string; type: string; message: string }> = [];
+  if (msg.history) {
+    try {
+      const parsed = JSON.parse(msg.history);
+      if (Array.isArray(parsed)) history = parsed;
+    } catch {
+      history = [];
+    }
+  }
+  history.push({
+    at: new Date().toISOString(),
+    type: result.skipped ? "REPLY_DRAFT" : "REPLY_SENT",
+    message: parsed.data.message,
+  });
+
+  await prisma.contactMessage.update({
+    where: { id: msg.id },
+    data: { history: JSON.stringify(history) },
+  });
+
   revalidatePath("/admin/messages");
 }
 

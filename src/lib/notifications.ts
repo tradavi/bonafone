@@ -239,6 +239,21 @@ export function tplReclamationReceived(opts: { number: string }) {
   return { subject, html };
 }
 
+export function tplContactReply(opts: {
+  customerName: string;
+  subject: string;
+  message: string;
+}) {
+  const subject = `Re: ${opts.subject}`;
+  const html = emailLayout(`
+    <p>Bonjour ${escapeHtml(opts.customerName.split(" ")[0] || opts.customerName)},</p>
+    <p>Merci pour votre message. Voici notre réponse :</p>
+    <div style="background:#1f1f1f;border:1px solid #262626;border-radius:10px;padding:14px 18px;margin:16px 0;white-space:pre-line">${escapeHtml(opts.message)}</div>
+    <p style="color:#a3a3a3;font-size:13px">Pour toute précision, n'hésitez pas à répondre à cet email.</p>
+  `);
+  return { subject, html };
+}
+
 export function tplReclamationReply(opts: {
   number: string;
   message: string;
