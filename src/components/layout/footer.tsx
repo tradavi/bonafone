@@ -99,7 +99,20 @@ export async function Footer() {
           ]}
         />
 
-        {/* Colonne 3 : Nous trouver — adresse, tél, email, horaires */}
+        {/* Colonne 3 : Aide & Compte */}
+        <FooterCol
+          title="Aide & Compte"
+          links={[
+            ["/compte", "Mon compte"],
+            ["/contact", "Contact"],
+            ["/reclamations", "Réclamations"],
+            ["/conditions", "CGV"],
+            ["/confidentialite", "Confidentialité"],
+            ["/mentions-legales", "Mentions légales"],
+          ]}
+        />
+
+        {/* Colonne 4 : Nous trouver — adresse, tél, email, horaires */}
         <div>
           <div className="font-semibold mb-4 text-foreground">Nous trouver</div>
           <ul className="space-y-2 text-sm text-foreground-muted">
@@ -132,19 +145,6 @@ export async function Footer() {
             </li>
           </ul>
         </div>
-
-        {/* Colonne 4 : Aide & Compte */}
-        <FooterCol
-          title="Aide & Compte"
-          links={[
-            ["/compte", "Mon compte"],
-            ["/contact", "Contact"],
-            ["/reclamations", "Réclamations"],
-            ["/conditions", "CGV"],
-            ["/confidentialite", "Confidentialité"],
-            ["/mentions-legales", "Mentions légales"],
-          ]}
-        />
       </div>
 
       {/* Copyright */}
