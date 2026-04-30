@@ -48,7 +48,6 @@ async function main() {
       { name: "Google", slug: "google" },
       { name: "OnePlus", slug: "oneplus" },
       { name: "Oppo", slug: "oppo" },
-      { name: "Anker", slug: "anker" },
     ].map((b) =>
       prisma.brand.upsert({
         where: { slug: b.slug },
@@ -151,18 +150,6 @@ async function main() {
       price: 949,
       stock: 7,
       primaryImage: ph("#0891b2", "Galaxy Tab S9"),
-    },
-    {
-      slug: "chargeur-usb-c-65w",
-      name: "Chargeur USB-C 65W",
-      description: "Chargeur GaN compact, 3 ports, idéal voyage. Compatible PD 3.0.",
-      category: "ACCESSOIRE",
-      condition: "RECONDITIONNE",
-      brandId: byName.Anker.id,
-      price: 39,
-      stock: 50,
-      badge: "Nouveau",
-      primaryImage: ph("#1e40af", "Chargeur 65W"),
     },
   ];
 
