@@ -367,60 +367,93 @@ const QuoteSchema = z.object({
 });
 
 export async function sendRepairQuote(formData: FormData) {
-  const user = await requireAdmin();
+  // Cible de redirection finale — déterminée à la fin, hors try/catch pour que
+  // NEXT_REDIRECT ne soit pas avalé. Pattern identique aux autres actions du repo.
+  let target: string;
+  let repairNumberForRedirect: string | null = null;
 
-  const raw: Record<string, string> = {};
-  for (const [k, v] of formData.entries()) {
-    if (typeof v === "string") raw[k] = v;
+  try {
+    const user = await requireAdmin();
+
+    const raw: Record<string, string> = {};
+    for (const [k, v] of formData.entries()) {
+      if (typeof v === "string") raw[k] = v;
+    }
+    const parsed = QuoteSchema.safeParse(raw);
+    if (!parsed.success) {
+      throw new Error(parsed.error.errors[0]?.message ?? "Formulaire invalide");
+    }
+    const { repairId, message } = parsed.data;
+
+    const repair = await prisma.repair.findUnique({
+      where: { id: repairId },
+      include: { parts: { orderBy: { orderedAt: "asc" } } },
+    });
+    if (!repair) throw new Error("Dossier introuvable");
+    repairNumberForRedirect = repair.number;
+
+    if (!repair.customerEmail) {
+      throw new Error("Aucun email client renseigné — impossible d'envoyer le devis");
+    }
+    if (repair.estimatedCost == null) {
+      throw new Error("Définissez d'abord un coût estimé avant d'envoyer le devis");
+    }
+
+    const tpl = tplRepairQuote({
+      customerName: repair.customerName,
+      number: repair.number,
+      device: `${repair.brand} ${repair.model}`,
+      issueType: repair.issueType,
+      totalTtc: repair.estimatedCost,
+      parts: repair.parts.map((p) => ({ name: p.name, costTtc: p.cost })),
+      message,
+    });
+
+    const result = await sendEmail({
+      to: repair.customerEmail,
+      toName: repair.customerName,
+      subject: tpl.subject,
+      html: tpl.html,
+    });
+
+    // ⚠ Vérification critique : si Brevo a rejeté l'envoi, on NE crée PAS
+    // d'event "envoyé" (sinon ça ment au client) — on remonte l'erreur dans l'UI.
+    if (!result.ok) {
+      console.error("[sendRepairQuote] Brevo a refusé :", result.error);
+      target = `/admin/reparations/${repair.number}?quoteError=${encodeURIComponent(
+        result.error ?? "Envoi de l'email échoué (Brevo)",
+      )}`;
+    } else {
+      await prisma.repairStatusEvent.create({
+        data: {
+          repairId: repair.id,
+          status: repair.status,
+          comment: result.skipped
+            ? `Devis préparé pour ${repair.customerEmail} (mode démo — pas d'envoi réel : ${formatPrice(repair.estimatedCost)})`
+            : `Devis envoyé à ${repair.customerEmail} (${formatPrice(repair.estimatedCost)})`,
+          createdBy: user.id,
+          notifiedClient: !result.skipped,
+        },
+      });
+
+      revalidatePath("/admin/reparations");
+      revalidatePath("/admin/devis");
+      revalidatePath(`/admin/reparations/${repair.number}`);
+
+      target = result.skipped
+        ? `/admin/reparations/${repair.number}?quoteSent=demo`
+        : `/admin/reparations/${repair.number}?quoteSent=1`;
+    }
+  } catch (err) {
+    console.error("[sendRepairQuote] erreur :", err);
+    const msg = err instanceof Error ? err.message : "Erreur inattendue";
+    // Si on a déjà récupéré le numéro, on revient sur la fiche ; sinon, sur la liste.
+    target = repairNumberForRedirect
+      ? `/admin/reparations/${repairNumberForRedirect}?quoteError=${encodeURIComponent(msg)}`
+      : `/admin/reparations?error=${encodeURIComponent(msg)}`;
   }
-  const parsed = QuoteSchema.safeParse(raw);
-  if (!parsed.success) throw new Error(parsed.error.errors[0]?.message);
-  const { repairId, message } = parsed.data;
 
-  const repair = await prisma.repair.findUnique({
-    where: { id: repairId },
-    include: { parts: { orderBy: { orderedAt: "asc" } } },
-  });
-  if (!repair) throw new Error("Dossier introuvable");
-  if (!repair.customerEmail) {
-    throw new Error("Aucun email client renseigné — impossible d'envoyer le devis");
-  }
-  if (repair.estimatedCost == null) {
-    throw new Error("Définissez d'abord un coût estimé avant d'envoyer le devis");
-  }
-
-  const tpl = tplRepairQuote({
-    customerName: repair.customerName,
-    number: repair.number,
-    device: `${repair.brand} ${repair.model}`,
-    issueType: repair.issueType,
-    totalTtc: repair.estimatedCost,
-    parts: repair.parts.map((p) => ({ name: p.name, costTtc: p.cost })),
-    message,
-  });
-
-  const result = await sendEmail({
-    to: repair.customerEmail,
-    toName: repair.customerName,
-    subject: tpl.subject,
-    html: tpl.html,
-  });
-
-  await prisma.repairStatusEvent.create({
-    data: {
-      repairId: repair.id,
-      status: repair.status,
-      comment: result.skipped
-        ? `Devis préparé pour ${repair.customerEmail} (envoi désactivé : ${formatPrice(repair.estimatedCost)})`
-        : `Devis envoyé à ${repair.customerEmail} (${formatPrice(repair.estimatedCost)})`,
-      createdBy: user.id,
-      notifiedClient: !result.skipped,
-    },
-  });
-
-  revalidatePath("/admin/reparations");
-  revalidatePath("/admin/devis");
-  revalidatePath(`/admin/reparations/${repair.number}`);
+  redirect(target);
 }
 
 export async function archiveRepair(formData: FormData) {

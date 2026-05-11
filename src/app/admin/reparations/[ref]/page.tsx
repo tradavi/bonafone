@@ -19,6 +19,7 @@ import {
   Archive,
   Printer,
   Send,
+  CheckCircle2,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { formatPrice, priceBreakdown, VAT_RATE } from "@/lib/utils";
@@ -36,7 +37,13 @@ import {
 } from "@/lib/actions/repairs";
 import { ConfirmSubmitButton } from "@/components/admin/confirm-submit-button";
 
-type Props = { params: Promise<{ ref: string }> };
+type Props = {
+  params: Promise<{ ref: string }>;
+  searchParams: Promise<{
+    quoteSent?: string;
+    quoteError?: string;
+  }>;
+};
 
 export const dynamic = "force-dynamic";
 
@@ -84,8 +91,9 @@ const CONTACT_ICON: Record<string, typeof Phone> = {
   WHATSAPP: MessageCircle,
 };
 
-export default async function AdminRepairDetailPage({ params }: Props) {
+export default async function AdminRepairDetailPage({ params, searchParams }: Props) {
   const { ref } = await params;
+  const { quoteSent, quoteError } = await searchParams;
   const repair = await prisma.repair.findUnique({
     where: { number: ref },
     include: {
@@ -105,6 +113,32 @@ export default async function AdminRepairDetailPage({ params }: Props) {
 
   return (
     <div className="space-y-5">
+      {/* Banner retour de l'action "Envoyer le devis" */}
+      {quoteSent === "1" && (
+        <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 text-sm flex items-center gap-2 text-emerald-400">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          Devis envoyé par email à <strong>{repair.customerEmail}</strong>.
+        </div>
+      )}
+      {quoteSent === "demo" && (
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 text-sm flex items-start gap-2 text-amber-400">
+          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+          <div>
+            Devis préparé mais <strong>non envoyé</strong> — Brevo n&apos;est pas
+            configuré (clé API + email expéditeur). Renseigne-les dans{" "}
+            <Link href="/admin/parametres" className="underline">Paramètres</Link>.
+          </div>
+        </div>
+      )}
+      {quoteError && (
+        <div className="bg-primary/10 border border-primary/30 rounded-xl p-3 text-sm flex items-start gap-2 text-primary">
+          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+          <div>
+            <strong>Envoi échoué.</strong> {quoteError}
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="bg-surface border border-border rounded-2xl p-6">
         <Link
