@@ -1,4 +1,15 @@
+import { unstable_cache } from "next/cache";
 import { prisma } from "./prisma";
+
+/**
+ * Tags de cache cross-request — invalider via revalidateTag() après mutation.
+ * Voir src/lib/actions/* pour les invalidations.
+ */
+export const CACHE_TAGS = {
+  brands: "brands",
+  products: "products",
+  reviews: "reviews",
+} as const;
 
 // =====================================================
 // PRODUITS
@@ -68,15 +79,19 @@ function mapCard(p: {
   };
 }
 
-export async function getFeaturedProducts(limit = 8): Promise<ProductCardData[]> {
-  const products = await prisma.product.findMany({
-    where: { isActive: true },
-    orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }],
-    take: limit,
-    select: PRODUCT_CARD_SELECT,
-  });
-  return products.map(mapCard);
-}
+export const getFeaturedProducts = unstable_cache(
+  async (limit = 8): Promise<ProductCardData[]> => {
+    const products = await prisma.product.findMany({
+      where: { isActive: true },
+      orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }],
+      take: limit,
+      select: PRODUCT_CARD_SELECT,
+    });
+    return products.map(mapCard);
+  },
+  ["featured-products"],
+  { revalidate: 1800, tags: [CACHE_TAGS.products] },
+);
 
 export type ProductFilter = {
   category?: string | string[];
@@ -192,13 +207,17 @@ export async function getBrands() {
   return prisma.brand.findMany({ orderBy: { name: "asc" } });
 }
 
-export async function getBrandNames(): Promise<string[]> {
-  const brands = await prisma.brand.findMany({
-    orderBy: { name: "asc" },
-    select: { name: true },
-  });
-  return brands.map((b) => b.name);
-}
+export const getBrandNames = unstable_cache(
+  async (): Promise<string[]> => {
+    const brands = await prisma.brand.findMany({
+      orderBy: { name: "asc" },
+      select: { name: true },
+    });
+    return brands.map((b) => b.name);
+  },
+  ["brand-names"],
+  { revalidate: 3600, tags: [CACHE_TAGS.brands] },
+);
 
 // =====================================================
 // AVIS
@@ -213,22 +232,26 @@ export type ReviewData = {
   createdAt: Date;
 };
 
-export async function getFeaturedReviews(limit = 4): Promise<ReviewData[]> {
-  const reviews = await prisma.review.findMany({
-    where: { isPublished: true },
-    orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }],
-    take: limit,
-    select: {
-      id: true,
-      source: true,
-      authorName: true,
-      rating: true,
-      comment: true,
-      createdAt: true,
-    },
-  });
-  return reviews;
-}
+export const getFeaturedReviews = unstable_cache(
+  async (limit = 4): Promise<ReviewData[]> => {
+    const reviews = await prisma.review.findMany({
+      where: { isPublished: true },
+      orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }],
+      take: limit,
+      select: {
+        id: true,
+        source: true,
+        authorName: true,
+        rating: true,
+        comment: true,
+        createdAt: true,
+      },
+    });
+    return reviews;
+  },
+  ["featured-reviews"],
+  { revalidate: 1800, tags: [CACHE_TAGS.reviews] },
+);
 
 export async function getAllReviews(opts?: {
   rating?: number;
@@ -257,19 +280,23 @@ export async function getAllReviews(opts?: {
   });
 }
 
-export async function getReviewsStats() {
-  const [count, agg] = await Promise.all([
-    prisma.review.count({ where: { isPublished: true } }),
-    prisma.review.aggregate({
-      where: { isPublished: true },
-      _avg: { rating: true },
-    }),
-  ]);
-  return {
-    count,
-    average: agg._avg.rating ?? 0,
-  };
-}
+export const getReviewsStats = unstable_cache(
+  async () => {
+    const [count, agg] = await Promise.all([
+      prisma.review.count({ where: { isPublished: true } }),
+      prisma.review.aggregate({
+        where: { isPublished: true },
+        _avg: { rating: true },
+      }),
+    ]);
+    return {
+      count,
+      average: agg._avg.rating ?? 0,
+    };
+  },
+  ["reviews-stats"],
+  { revalidate: 1800, tags: [CACHE_TAGS.reviews] },
+);
 
 // =====================================================
 // RÉPARATIONS

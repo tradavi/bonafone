@@ -81,6 +81,36 @@ Configurer :
 
 Si Prisma demande une étape de migration : ajouter `"vercel-build": "prisma generate && next build"` dans `package.json`.
 
+### 3.1 ⚡ Performance — config critique
+
+**Symptôme** : TTFB de 3-5 secondes sur les pages publiques en prod.
+**Cause habituelle** : DB et fonctions Vercel dans des régions différentes
+(chaque query traverse l'Atlantique → 100-150ms × N queries par page).
+
+1. **Région Vercel = Région Supabase** :
+   - `vercel.json` est déjà committé avec `"regions": ["fra1"]` (Frankfurt, EU).
+   - Si Supabase est en EU : OK. Si en US, changer pour `["iad1"]`.
+   - Vérifier dans Vercel Dashboard → Project Settings → Functions → Region.
+
+2. **`DATABASE_URL` = pooler Supabase (port 6543)** :
+   ```
+   postgresql://postgres.<ref>:<pwd>@aws-0-<region>.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1
+   ```
+   **`?pgbouncer=true&connection_limit=1` est OBLIGATOIRE** — sans ça, chaque
+   serverless function ouvre une nouvelle connexion → épuisement rapide.
+
+3. **`DIRECT_URL` = connexion directe (port 5432)** :
+   ```
+   postgresql://postgres.<ref>:<pwd>@aws-0-<region>.pooler.supabase.com:5432/postgres
+   ```
+   Utilisé par `prisma migrate` uniquement.
+
+4. **Cache `unstable_cache` (déjà code)** : les queries publiques
+   (`getStoreSettings`, `getFeaturedProducts`, `getBrandNames`,
+   `getReviewsStats`, `getFeaturedReviews`) sont cachées 30 min à 1 h et
+   invalidées via `updateTag` après chaque mutation admin. Une page publique
+   ne touche normalement plus la DB après le premier hit post-déploiement.
+
 ## 4. Stripe — webhook prod
 
 Une fois déployé :

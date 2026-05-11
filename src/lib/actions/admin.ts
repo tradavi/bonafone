@@ -1,11 +1,11 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { generateNextRepairNumber } from "@/lib/queries";
+import { CACHE_TAGS, generateNextRepairNumber } from "@/lib/queries";
 import { saveUploadedImage, isImageFile } from "@/lib/uploads";
 import {
   sendEmail,
@@ -146,6 +146,8 @@ export async function createProduct(formData: FormData) {
   revalidatePath("/admin/produits");
   revalidatePath("/admin");
   revalidatePath("/boutique");
+  updateTag(CACHE_TAGS.products);
+  updateTag(CACHE_TAGS.brands);
   redirect(`/admin/produits/${created.id}?saved=1`);
 }
 
@@ -223,6 +225,8 @@ export async function updateProduct(formData: FormData) {
   revalidatePath(`/admin/produits/${id}`);
   revalidatePath("/admin");
   revalidatePath("/boutique");
+  updateTag(CACHE_TAGS.products);
+  updateTag(CACHE_TAGS.brands);
   redirect(`/admin/produits/${id}?saved=1`);
 }
 
@@ -240,6 +244,7 @@ export async function adjustProductStock(formData: FormData) {
   revalidatePath("/admin/produits");
   revalidatePath(`/admin/produits/${id}`);
   revalidatePath("/admin");
+  updateTag(CACHE_TAGS.products);
 }
 
 export async function archiveProduct(formData: FormData) {
@@ -250,6 +255,7 @@ export async function archiveProduct(formData: FormData) {
   revalidatePath("/admin/produits");
   revalidatePath("/admin");
   revalidatePath("/boutique");
+  updateTag(CACHE_TAGS.products);
   redirect("/admin/produits?archived=1");
 }
 
@@ -424,6 +430,7 @@ export async function toggleReviewPublished(formData: FormData) {
   revalidatePath("/admin/avis");
   revalidatePath("/temoignages");
   revalidatePath("/");
+  updateTag(CACHE_TAGS.reviews);
 }
 
 export async function toggleReviewFeatured(formData: FormData) {
@@ -439,6 +446,7 @@ export async function toggleReviewFeatured(formData: FormData) {
   revalidatePath("/admin/avis");
   revalidatePath("/temoignages");
   revalidatePath("/");
+  updateTag(CACHE_TAGS.reviews);
 }
 
 export async function deleteReview(formData: FormData) {
@@ -449,6 +457,7 @@ export async function deleteReview(formData: FormData) {
   revalidatePath("/admin/avis");
   revalidatePath("/temoignages");
   revalidatePath("/");
+  updateTag(CACHE_TAGS.reviews);
 }
 
 const NewReviewSchema = z.object({
@@ -485,6 +494,7 @@ export async function createReview(formData: FormData) {
   revalidatePath("/admin/avis");
   revalidatePath("/temoignages");
   revalidatePath("/");
+  updateTag(CACHE_TAGS.reviews);
   redirect("/admin/avis?created=1");
 }
 

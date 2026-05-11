@@ -1,6 +1,11 @@
+import { cache } from "react";
+import { unstable_cache, updateTag } from "next/cache";
 import { prisma } from "./prisma";
 import { STORE } from "./utils";
 import { encryptSecret, decryptSecret } from "./encryption";
+
+// Tag pour invalider le cache cross-request quand les settings changent.
+const STORE_SETTINGS_TAG = "store-settings";
 
 export type StoreInfo = {
   name: string;
@@ -74,7 +79,12 @@ const ALL_FIELDS = [...PUBLIC_FIELDS, ...API_FIELDS] as const;
 
 type RawRow = Partial<Record<(typeof ALL_FIELDS)[number], string | null>>;
 
-async function loadRow(): Promise<RawRow | null> {
+/**
+ * Charge la ligne brute depuis la DB.
+ * `cache()` de React dédoublonne les appels dans une même requête HTTP :
+ * si TopBar + Footer + page appellent loadRow(), une seule query SQL est faite.
+ */
+const loadRow = cache(async (): Promise<RawRow | null> => {
   try {
     const cols = ALL_FIELDS.map((f) => `"${f}"`).join(", ");
     // Postgres : placeholders $1, $2... (pas ? comme SQLite/MySQL)
@@ -86,27 +96,37 @@ async function loadRow(): Promise<RawRow | null> {
   } catch {
     return null;
   }
-}
+});
 
-export async function getStoreSettings(): Promise<StoreInfo> {
-  const row = await loadRow();
-  return {
-    name: row?.name || STORE.name,
-    tagline: row?.tagline || STORE.tagline,
-    phone: row?.phone || STORE.phone,
-    email: row?.email || STORE.email,
-    address: row?.address || STORE.address,
-    hours: row?.hours || STORE.hours,
-    whatsapp: row?.whatsapp || STORE.whatsapp,
-    gmaps: row?.gmaps || STORE.gmaps,
-    facebook: row?.facebook || "",
-    instagram: row?.instagram || "",
-    youtube: row?.youtube || "",
-    tiktok: row?.tiktok || "",
-    linkedin: row?.linkedin || "",
-    twitter: row?.twitter || "",
-  };
-}
+/**
+ * Settings publics du magasin (lus partout : TopBar, Footer, pages contact, etc.).
+ * Cache cross-request d'1 heure, invalidé via `revalidateTag` quand
+ * `upsertStoreSettings()` est appelé. Sur Vercel, ça économise ~300ms par
+ * page publique (sinon une query SQL par render).
+ */
+export const getStoreSettings = unstable_cache(
+  async (): Promise<StoreInfo> => {
+    const row = await loadRow();
+    return {
+      name: row?.name || STORE.name,
+      tagline: row?.tagline || STORE.tagline,
+      phone: row?.phone || STORE.phone,
+      email: row?.email || STORE.email,
+      address: row?.address || STORE.address,
+      hours: row?.hours || STORE.hours,
+      whatsapp: row?.whatsapp || STORE.whatsapp,
+      gmaps: row?.gmaps || STORE.gmaps,
+      facebook: row?.facebook || "",
+      instagram: row?.instagram || "",
+      youtube: row?.youtube || "",
+      tiktok: row?.tiktok || "",
+      linkedin: row?.linkedin || "",
+      twitter: row?.twitter || "",
+    };
+  },
+  ["store-settings-public"],
+  { revalidate: 3600, tags: [STORE_SETTINGS_TAG] },
+);
 
 /**
  * Renvoie les clés API stockées en DB en priorité (déchiffrées), sinon les
@@ -218,4 +238,8 @@ export async function upsertStoreSettings(
   `;
 
   await prisma.$executeRawUnsafe(sql, ...insertValues);
+
+  // Invalide le cache cross-request de getStoreSettings — sinon l'admin
+  // modifie l'adresse/téléphone et le front continue d'afficher l'ancien.
+  updateTag(STORE_SETTINGS_TAG);
 }
