@@ -4,17 +4,35 @@ Guide pour passer de SQLite/dev → PostgreSQL/Vercel. Tout reste fonctionnel en
 
 ## 1. Base de données — bascule vers PostgreSQL
 
-`prisma/schema.prisma` est en SQLite par défaut. Pour la production :
+`prisma/schema.prisma` est en **SQLite par défaut** pour le dev local.
+Avant de pousser sur Vercel, basculer le schéma en PostgreSQL avec :
 
-```diff
- datasource db {
--  provider = "sqlite"
-+  provider = "postgresql"
-   url      = env("DATABASE_URL")
- }
+```bash
+npm run db:prod   # → provider = "postgresql" + directUrl, régénère le client
+git add prisma/schema.prisma
+git commit -m "Switch DB to postgres for deploy"
+git push origin main   # Vercel rebuild en mode prod
 ```
 
-Provisionner un Postgres managed (Vercel Postgres / Neon / Supabase). Récupérer la connection string et la mettre dans `DATABASE_URL`.
+Pour revenir en dev local après un déploiement :
+
+```bash
+npm run db:dev    # → provider = "sqlite", régénère le client
+```
+
+Autres commandes utiles :
+
+```bash
+npm run db:status   # affiche le mode actuel (sqlite ou postgresql)
+```
+
+> Les scripts sont **idempotents** : appeler `db:prod` deux fois ne fait rien la
+> seconde fois. La logique vit dans [`scripts/db-switch.mjs`](scripts/db-switch.mjs).
+
+Provisionner un Postgres managed (Vercel Postgres / Neon / Supabase). Récupérer
+la connection string et la mettre dans `DATABASE_URL`. Pour Supabase, mettre
+**aussi** `DIRECT_URL` (port 5432, sans pooler) — Prisma en a besoin pour les
+migrations.
 
 ```bash
 npm run db:generate

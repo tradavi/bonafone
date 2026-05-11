@@ -11,7 +11,10 @@
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
-    "db:generate": "prisma generate"
+    "db:generate": "prisma generate",
+    "db:dev": "node scripts/db-switch.mjs dev",
+    "db:prod": "node scripts/db-switch.mjs prod",
+    "db:status": "node scripts/db-switch.mjs status"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
