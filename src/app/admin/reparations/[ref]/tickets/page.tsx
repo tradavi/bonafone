@@ -62,6 +62,9 @@ export default async function TicketsPage({ params, searchParams }: Props) {
           - Saut de page entre les deux tickets pour les Zebra/réseau
       */}
       <style>{`
+        /* Tickets en gras sur tout — écran et impression */
+        .ticket, .ticket * { font-weight: 700 !important; }
+
         @media print {
           @page { size: 80mm auto; margin: 0; }
           html, body {
@@ -84,7 +87,7 @@ export default async function TicketsPage({ params, searchParams }: Props) {
             font-family: 'Courier New', monospace;
           }
           .ticket:last-of-type { page-break-after: auto; }
-          .ticket * { color: black !important; background: transparent !important; border-color: black !important; }
+          .ticket * { color: black !important; background: transparent !important; border-color: black !important; font-weight: 700 !important; }
           .ticket .barcode svg { width: 100% !important; height: auto !important; }
           /* Mode d'impression sélectif : on cache le ticket non concerné */
           body[data-print-mode="client"] .ticket-store { display: none !important; }

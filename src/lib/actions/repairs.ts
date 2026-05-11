@@ -447,3 +447,37 @@ export async function archiveRepair(formData: FormData) {
   revalidatePath("/admin/reparations");
   revalidatePath("/admin");
 }
+
+// =====================================================
+// SUPPRIMER DÉFINITIVEMENT UN DOSSIER
+// =====================================================
+// Action destructive : supprime le dossier ET tous ses enfants
+// (events, parts, photos, invoices) via les cascades du schéma Prisma.
+// Redirige vers la liste — la page courante n'existerait plus.
+
+export async function deleteRepair(formData: FormData) {
+  await requireAdmin();
+  const repairId = formData.get("repairId");
+  if (typeof repairId !== "string") throw new Error("ID manquant");
+
+  const repair = await prisma.repair.findUnique({
+    where: { id: repairId },
+    select: { number: true, status: true },
+  });
+  if (!repair) throw new Error("Dossier introuvable");
+
+  // Suppression — les onDelete: Cascade sur les relations enfants gèrent le reste
+  // (RepairStatusEvent, RepairPart, RepairPhoto, RepairInvoice).
+  await prisma.repair.delete({ where: { id: repairId } });
+
+  console.log(`🗑️  Dossier supprimé : ${repair.number}`);
+
+  revalidatePath("/admin/reparations");
+  revalidatePath("/admin/devis");
+  revalidatePath("/admin");
+
+  // La page /admin/reparations/[ref] courante n'existe plus → redirection.
+  const target =
+    repair.status === "DEMANDE_DEVIS" ? "/admin/devis" : "/admin/reparations";
+  redirect(target);
+}

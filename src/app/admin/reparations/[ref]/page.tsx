@@ -32,7 +32,9 @@ import {
   archiveRepair,
   convertDevisToRepair,
   sendRepairQuote,
+  deleteRepair,
 } from "@/lib/actions/repairs";
+import { ConfirmSubmitButton } from "@/components/admin/confirm-submit-button";
 
 type Props = { params: Promise<{ ref: string }> };
 
@@ -602,24 +604,47 @@ export default async function AdminRepairDetailPage({ params }: Props) {
           </Card>
 
           {/* Zone dangereuse */}
-          <div className="bg-surface border border-primary/30 rounded-2xl p-5">
-            <h2 className="font-extrabold tracking-tight mb-1 text-primary flex items-center gap-2">
-              <Archive className="h-4 w-4" />
-              Archiver
-            </h2>
-            <p className="text-xs text-foreground-muted mb-3">
-              Passe le dossier en <strong>RESTITUE</strong> et le sort de la liste des actifs. Réversible via un changement de statut.
-            </p>
-            <form action={archiveRepair}>
-              <input type="hidden" name="repairId" value={repair.id} />
-              <button
-                type="submit"
-                className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary/10 hover:bg-primary text-primary hover:text-white border border-primary/40 rounded-lg text-sm font-semibold transition"
-              >
-                <Archive className="h-4 w-4" />
-                Archiver le dossier
-              </button>
-            </form>
+          <div className="bg-surface border border-primary/30 rounded-2xl p-5 space-y-4">
+            <div>
+              <h2 className="font-extrabold tracking-tight mb-1 flex items-center gap-2">
+                <Archive className="h-4 w-4 text-amber-400" />
+                Archiver
+              </h2>
+              <p className="text-xs text-foreground-muted mb-3">
+                Passe le dossier en <strong>RESTITUE</strong> et le sort de la liste des actifs. Réversible via un changement de statut.
+              </p>
+              <form action={archiveRepair}>
+                <input type="hidden" name="repairId" value={repair.id} />
+                <button
+                  type="submit"
+                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-white border border-amber-500/40 rounded-lg text-sm font-semibold transition"
+                >
+                  <Archive className="h-4 w-4" />
+                  Archiver le dossier
+                </button>
+              </form>
+            </div>
+
+            <div className="border-t border-border pt-4">
+              <h2 className="font-extrabold tracking-tight mb-1 text-primary flex items-center gap-2">
+                <Trash2 className="h-4 w-4" />
+                Supprimer définitivement
+              </h2>
+              <p className="text-xs text-foreground-muted mb-3">
+                Efface le dossier <strong>{repair.number}</strong>, son historique, ses pièces et ses photos.{" "}
+                <strong className="text-primary">Cette action est irréversible.</strong>
+              </p>
+              <form action={deleteRepair}>
+                <input type="hidden" name="repairId" value={repair.id} />
+                <ConfirmSubmitButton
+                  message={`Supprimer définitivement le dossier ${repair.number} ?\n\nCette action est irréversible.`}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary/10 hover:bg-primary text-primary hover:text-white border border-primary/40 rounded-lg text-sm font-semibold transition"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Supprimer le dossier
+                </ConfirmSubmitButton>
+              </form>
+            </div>
           </div>
 
           {/* Historique */}
