@@ -1,9 +1,8 @@
 import {
   User,
-  ShoppingBag,
   Wrench,
-  Heart,
-  MapPin,
+  FileText,
+  Star,
   LogOut,
   UserCog,
   ShieldCheck,
@@ -16,10 +15,9 @@ const ICON_CLS = "h-4 w-4";
 
 const CLIENT_NAV = [
   { href: "/compte", label: "Tableau de bord", icon: <User className={ICON_CLS} /> },
-  { href: "/compte/commandes", label: "Mes commandes", icon: <ShoppingBag className={ICON_CLS} /> },
   { href: "/compte/reparations", label: "Mes réparations", icon: <Wrench className={ICON_CLS} /> },
-  { href: "/compte/wishlist", label: "Mes favoris", icon: <Heart className={ICON_CLS} /> },
-  { href: "/compte/adresses", label: "Mes adresses", icon: <MapPin className={ICON_CLS} /> },
+  { href: "/compte/devis", label: "Mes devis", icon: <FileText className={ICON_CLS} /> },
+  { href: "/compte/avis", label: "Mes avis", icon: <Star className={ICON_CLS} /> },
   { href: "/compte/profil", label: "Mon profil", icon: <UserCog className={ICON_CLS} /> },
 ];
 

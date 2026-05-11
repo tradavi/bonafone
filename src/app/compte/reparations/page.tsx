@@ -8,7 +8,6 @@ export const metadata = { title: "Mes réparations" };
 export const dynamic = "force-dynamic";
 
 const STATUS_STYLES: Record<string, string> = {
-  DEMANDE_DEVIS: "bg-amber-500/15 text-amber-400 border-amber-500/30",
   RECU: "bg-blue-500/15 text-blue-400 border-blue-500/30",
   DIAGNOSTIC: "bg-purple-500/15 text-purple-400 border-purple-500/30",
   DEVIS_VALIDE: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30",
@@ -21,7 +20,6 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 const STATUS_LABEL: Record<string, string> = {
-  DEMANDE_DEVIS: "Devis en attente",
   RECU: "Reçu",
   DIAGNOSTIC: "Diagnostic",
   DEVIS_VALIDE: "Devis validé",
@@ -37,8 +35,12 @@ export default async function MesReparationsPage() {
   const session = await auth();
   if (!session?.user) return null;
 
+  // On exclut les DEMANDE_DEVIS — ils ont leur propre page /compte/devis.
   const repairs = await prisma.repair.findMany({
-    where: { userId: session.user.id },
+    where: {
+      userId: session.user.id,
+      status: { not: "DEMANDE_DEVIS" },
+    },
     orderBy: { createdAt: "desc" },
   });
 

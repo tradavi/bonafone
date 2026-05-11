@@ -1,10 +1,21 @@
 import Link from "next/link";
-import { ShoppingBag, Wrench, Star, ShieldCheck } from "lucide-react";
+import { Wrench, FileText, Star, ShieldCheck } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
 export const metadata = { title: "Mon compte" };
 export const dynamic = "force-dynamic";
+
+// Statuts considérés comme "réparation en cours" (post-acceptation devis)
+const ACTIVE_REPAIR_STATUSES = [
+  "RECU",
+  "DIAGNOSTIC",
+  "DEVIS_VALIDE",
+  "EN_REPARATION",
+  "ATTENTE_PIECE",
+  "TERMINE",
+  "PRET_RECUPERATION",
+] as const;
 
 export default async function ComptePage() {
   const session = await auth();
@@ -12,10 +23,16 @@ export default async function ComptePage() {
   if (!session?.user) return null;
 
   const userId = session.user.id;
-  const [ordersCount, repairsCount, loyalty] = await Promise.all([
-    prisma.order.count({ where: { userId } }),
-    prisma.repair.count({ where: { userId } }),
-    prisma.loyaltyAccount.findUnique({ where: { userId } }),
+  const [activeRepairs, pendingDevis, publishedReviews] = await Promise.all([
+    prisma.repair.count({
+      where: { userId, status: { in: [...ACTIVE_REPAIR_STATUSES] } },
+    }),
+    prisma.repair.count({
+      where: { userId, status: "DEMANDE_DEVIS" },
+    }),
+    prisma.review.count({
+      where: { userId, isPublished: true },
+    }),
   ]);
 
   const firstName =
@@ -47,22 +64,22 @@ export default async function ComptePage() {
       <div className="grid md:grid-cols-3 gap-4">
         {[
           {
-            icon: ShoppingBag,
-            title: "Commandes",
-            value: ordersCount.toString(),
-            href: "/compte/commandes",
-          },
-          {
             icon: Wrench,
             title: "Réparations en cours",
-            value: repairsCount.toString(),
+            value: activeRepairs.toString(),
             href: "/compte/reparations",
           },
           {
+            icon: FileText,
+            title: "Devis en attente",
+            value: pendingDevis.toString(),
+            href: "/compte/devis",
+          },
+          {
             icon: Star,
-            title: "Points fidélité",
-            value: (loyalty?.points ?? 0).toString(),
-            href: "/compte",
+            title: "Avis publiés",
+            value: publishedReviews.toString(),
+            href: "/compte/avis",
           },
         ].map(({ icon: Icon, title, value, href }) => (
           <Link
