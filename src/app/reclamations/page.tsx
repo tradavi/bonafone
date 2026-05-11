@@ -52,6 +52,7 @@ export default async function ReclamationsPage({ searchParams }: Props) {
 
         <form
           action={createReclamation}
+          encType="multipart/form-data"
           className="bg-surface border border-border rounded-2xl p-6 md:p-8 space-y-5"
         >
           <Field label="Type de réclamation" name="type" required>
@@ -93,12 +94,23 @@ export default async function ReclamationsPage({ searchParams }: Props) {
             />
           </Field>
 
-          {/* Upload de pièces jointes désactivé en attendant Cloudinary (Phase 3). */}
-          <div className="flex items-center gap-2 px-4 py-4 bg-surface-2 border border-dashed border-border rounded-lg text-sm text-foreground-muted">
-            <Upload className="h-5 w-5 shrink-0" />
-            <span>
-              Pour ajouter des photos ou documents justificatifs, mentionnez-le dans votre message — nous vous demanderons de les envoyer par email après réception.
-            </span>
+          {/* Photos justificatives (jusqu'à 5) — pattern identique au formulaire devis */}
+          <div>
+            <label className="block text-sm font-medium mb-1.5">
+              Photos justificatives <span className="text-foreground-muted text-xs">(optionnel — jusqu&apos;à 5)</span>
+            </label>
+            <label className="flex flex-col items-center gap-2 px-4 py-6 bg-surface-2 border border-dashed border-border hover:border-primary rounded-lg text-sm text-foreground-muted cursor-pointer transition">
+              <Upload className="h-6 w-6 text-primary" />
+              <span className="font-semibold text-foreground">Cliquez pour ajouter des photos</span>
+              <span className="text-xs">jpg, png, webp · max 8 Mo par image</span>
+              <input
+                name="photos"
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+                multiple
+                className="hidden"
+              />
+            </label>
           </div>
 
           <div className="grid grid-cols-2 gap-3 p-4 bg-surface-2 border border-border rounded-lg">

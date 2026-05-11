@@ -1,4 +1,5 @@
-import { AlertCircle, Save, Mail, Phone, Send, Lock, Clock } from "lucide-react";
+import Image from "next/image";
+import { AlertCircle, Save, Mail, Phone, Send, Lock, Clock, Paperclip } from "lucide-react";
 import { getAdminAllReclamations } from "@/lib/queries";
 import {
   updateReclamationStatus,
@@ -31,12 +32,28 @@ const TYPE_LABEL: Record<string, string> = {
 };
 
 type HistoryEvent = { at: string; type: string; message: string };
+type Attachment = { url: string; name?: string };
 
 function parseHistory(raw: string | null): HistoryEvent[] {
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) return parsed;
+  } catch {
+    // ignore
+  }
+  return [];
+}
+
+function parseAttachments(raw: string | null): Attachment[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parsed
+        .filter((a): a is Attachment => typeof a?.url === "string")
+        .map((a) => ({ url: a.url, name: typeof a.name === "string" ? a.name : undefined }));
+    }
   } catch {
     // ignore
   }
@@ -69,6 +86,7 @@ export default async function AdminReclamationsPage() {
           const replies = history.filter(
             (h) => h.type === "REPLY_SENT" || h.type === "REPLY_DRAFT",
           );
+          const attachments = parseAttachments(r.attachments);
           return (
             <div key={r.id} className="bg-surface border border-border rounded-2xl p-5 space-y-4">
               {/* En-tête */}
@@ -121,6 +139,37 @@ export default async function AdminReclamationsPage() {
                   {r.description}
                 </p>
               </div>
+
+              {/* Photos jointes par le client */}
+              {attachments.length > 0 && (
+                <div>
+                  <div className="text-xs text-foreground-muted font-semibold mb-1.5 flex items-center gap-1.5">
+                    <Paperclip className="h-3.5 w-3.5" />
+                    Photos jointes ({attachments.length})
+                  </div>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+                    {attachments.map((a, i) => (
+                      <a
+                        key={i}
+                        href={a.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        title={a.name ?? `Photo ${i + 1}`}
+                        className="relative aspect-square bg-surface-2 border border-border hover:border-primary rounded-lg overflow-hidden transition"
+                      >
+                        <Image
+                          src={a.url}
+                          alt={a.name ?? `Photo ${i + 1} de la réclamation ${r.number}`}
+                          fill
+                          sizes="(max-width: 640px) 33vw, (max-width: 768px) 25vw, 20vw"
+                          className="object-cover"
+                          unoptimized
+                        />
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Historique des réponses envoyées */}
               {replies.length > 0 && (
