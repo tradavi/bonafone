@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Search, FileText, ArrowRight, Wrench, MailOpen, Send } from "lucide-react";
+import { Search, FileText, ArrowRight, Wrench, MailOpen, Send, Plus } from "lucide-react";
 import { getAllDevisRequests } from "@/lib/queries";
 import { convertDevisToRepair, sendRepairQuote } from "@/lib/actions/repairs";
 import { formatPrice } from "@/lib/utils";
@@ -40,17 +40,26 @@ export default async function AdminDevisPage({ searchParams }: Props) {
             <h1 className="text-2xl font-extrabold tracking-tight">Demandes de devis</h1>
           </div>
           <p className="text-sm text-foreground-muted">
-            {all.length} demande{all.length > 1 ? "s" : ""} en attente de dépôt physique en boutique.
+            {all.length} demande{all.length > 1 ? "s" : ""} en attente — formulaires en ligne et dépôts en magasin.
           </p>
         </div>
+        <Link
+          href="/admin/reparations/nouveau?mode=devis"
+          className="relative inline-flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary-strong text-white rounded-lg text-sm font-semibold transition shadow-[0_0_20px_var(--primary-glow)]"
+        >
+          <Plus className="h-4 w-4" />
+          Nouveau devis en magasin
+        </Link>
       </div>
 
       <div className="bg-surface border border-amber-500/30 bg-amber-500/5 rounded-2xl p-4 text-sm flex items-start gap-2">
         <MailOpen className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
         <div className="text-foreground-muted">
-          Ces demandes viennent du formulaire en ligne — l&apos;appareil n&apos;a pas encore été
-          réceptionné. Cliquez <strong>« Convertir en réparation »</strong> dès que le client
-          dépose son appareil pour démarrer le suivi.
+          <strong>Workflow devis :</strong> demande en ligne (formulaire client) <em>ou</em>
+          dépôt physique en magasin → diagnostic & estimation par l&apos;équipe → bouton
+          <strong>« Envoyer »</strong> pour transmettre le devis par email → bouton
+          <strong>« Convertir »</strong> à l&apos;acceptation du client : le dossier passe
+          en statut Réparation.
         </div>
       </div>
 

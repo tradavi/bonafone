@@ -269,6 +269,39 @@ export function tplAccountCreatedByAdmin(opts: {
   return { subject, html };
 }
 
+/**
+ * Envoyé quand l'admin réinitialise le mot de passe d'un client depuis
+ * la fiche client (utile si le client a oublié son mdp).
+ */
+export function tplPasswordReset(opts: {
+  firstName: string;
+  email: string;
+  temporaryPassword: string;
+}) {
+  const subject = `${STORE.name} — votre nouveau mot de passe`;
+  const html = emailLayout(`
+    <p>Bonjour ${escapeHtml(opts.firstName)},</p>
+    <p>Votre mot de passe a été réinitialisé par notre équipe. Voici vos nouveaux identifiants :</p>
+    <table style="width:100%;border-collapse:collapse;margin:16px 0;background:#f9fafb;border-radius:8px;overflow:hidden">
+      <tr>
+        <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;font-size:13px;color:#6b7280">Email</td>
+        <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;font-family:ui-monospace,Menlo,monospace;font-size:14px;font-weight:600">${escapeHtml(opts.email)}</td>
+      </tr>
+      <tr>
+        <td style="padding:10px 14px;font-size:13px;color:#6b7280">Nouveau mot de passe</td>
+        <td style="padding:10px 14px;font-family:ui-monospace,Menlo,monospace;font-size:14px;font-weight:600;color:#ef4444">${escapeHtml(opts.temporaryPassword)}</td>
+      </tr>
+    </table>
+    <p><a href="${baseUrl()}/connexion" style="display:inline-block;background:#ef4444;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:600">Se connecter</a></p>
+    <p style="color:#6b7280;font-size:13px;margin-top:24px">
+      Pour votre sécurité, changez ce mot de passe dès votre prochaine connexion depuis
+      <strong>Mon profil</strong>. Si vous n'êtes pas à l'origine de cette demande,
+      contactez-nous immédiatement.
+    </p>
+  `);
+  return { subject, html };
+}
+
 export function tplReclamationReceived(opts: { number: string }) {
   const subject = `Votre réclamation ${opts.number} a bien été reçue`;
   const html = emailLayout(`

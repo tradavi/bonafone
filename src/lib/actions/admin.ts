@@ -13,7 +13,9 @@ import {
   tplReclamationReply,
   tplContactReply,
   tplAccountCreatedByAdmin,
+  tplPasswordReset,
 } from "@/lib/notifications";
+import { isSyntheticEmail } from "@/lib/synthetic-email";
 /**
  * Génère un mot de passe temporaire lisible.
  * 10 caractères, sans confusions (pas de 0/O, 1/l/I), faciles à lire/dicter.
@@ -278,6 +280,9 @@ export async function archiveProduct(formData: FormData) {
 // =====================================================
 
 const CreateRepairSchema = z.object({
+  // mode = "repair" (statut RECU, défaut) ou "devis" (statut DEMANDE_DEVIS,
+  // appareil reçu pour devis uniquement, en attente d'acceptation du client)
+  mode: z.enum(["repair", "devis"]).default("repair"),
   clientId: z.string().optional(),
   customerName: z.string().min(2).max(120),
   customerEmail: z.union([z.string().email(), z.literal("")]).optional(),
@@ -386,6 +391,15 @@ export async function createRepairAdmin(formData: FormData) {
     }
   }
 
+  // Statut initial selon le mode :
+  // - "repair" : dossier de réparation classique → RECU (appareil reçu + accepté)
+  // - "devis"  : appareil déposé pour devis, en attente d'acceptation → DEMANDE_DEVIS
+  const initialStatus = data.mode === "devis" ? "DEMANDE_DEVIS" : "RECU";
+  const initialComment =
+    data.mode === "devis"
+      ? "Appareil déposé en magasin pour devis"
+      : "Dossier créé en back-office (appareil reçu)";
+
   const repair = await prisma.repair.create({
     data: {
       number,
@@ -402,8 +416,8 @@ export async function createRepairAdmin(formData: FormData) {
       issueDescription: data.issueDescription,
       estimatedCost: data.estimatedCost ?? null,
       internalNotes: data.internalNotes || null,
-      // Dossier créé directement en back-office = appareil déjà reçu.
-      status: "RECU",
+      // Dans les deux modes l'appareil est physiquement au magasin.
+      status: initialStatus,
       depositedAt: new Date(),
     },
   });
@@ -411,8 +425,8 @@ export async function createRepairAdmin(formData: FormData) {
   await prisma.repairStatusEvent.create({
     data: {
       repairId: repair.id,
-      status: "RECU",
-      comment: "Dossier créé en back-office (appareil reçu)",
+      status: initialStatus,
+      comment: initialComment,
       createdBy: user.id,
     },
   });
@@ -442,8 +456,13 @@ export async function createRepairAdmin(formData: FormData) {
   }
 
   revalidatePath("/admin/reparations");
+  revalidatePath("/admin/devis");
   revalidatePath("/admin");
-  // Redirect vers les tickets pour impression immédiate
+  // Mode devis → vers la fiche du dossier pour diagnostiquer & faire le devis
+  // Mode repair → vers les tickets pour impression immédiate
+  if (data.mode === "devis") {
+    redirect(`/admin/reparations/${number}`);
+  }
   redirect(`/admin/reparations/${number}/tickets?print=1`);
 }
 
@@ -954,4 +973,61 @@ export async function deleteClientAdmin(formData: FormData) {
   await prisma.user.delete({ where: { id } });
   revalidatePath("/admin/clients");
   redirect("/admin/clients");
+}
+
+/**
+ * Réinitialise le mot de passe d'un client : génère un mot de passe temporaire,
+ * met à jour le hash en DB, puis envoie le nouveau mdp par email au client.
+ * Si le client n'a pas de vrai email (synthétique), on échoue avec un message clair.
+ */
+export async function resetClientPasswordAdmin(formData: FormData) {
+  await requireAdmin();
+  const id = formData.get("id");
+  if (typeof id !== "string") throw new Error("ID manquant");
+
+  const client = await prisma.user.findUnique({
+    where: { id },
+    select: { id: true, email: true, firstName: true, lastName: true },
+  });
+  if (!client) {
+    redirect("/admin/clients?error=Client+introuvable");
+  }
+
+  if (isSyntheticEmail(client.email)) {
+    redirect(
+      `/admin/clients/${id}?error=${encodeURIComponent(
+        "Ce client n'a pas d'email réel — ajoutez-en un avant de réinitialiser",
+      )}`,
+    );
+  }
+
+  const tempPassword = generateTemporaryPassword();
+  const passwordHash = await bcrypt.hash(tempPassword, 12);
+
+  await prisma.user.update({
+    where: { id },
+    data: { passwordHash },
+  });
+
+  const firstName = client.firstName ?? client.email.split("@")[0];
+  try {
+    const tpl = tplPasswordReset({
+      firstName,
+      email: client.email,
+      temporaryPassword: tempPassword,
+    });
+    await sendEmail({
+      to: client.email,
+      toName: `${firstName} ${client.lastName ?? ""}`.trim(),
+      subject: tpl.subject,
+      html: tpl.html,
+    });
+    console.log(`📧 Nouveau mdp envoyé à ${client.email}`);
+  } catch (err) {
+    console.warn("[resetClientPasswordAdmin] échec envoi email:", err);
+    // Le mdp est déjà en DB — l'admin peut le redonner manuellement si besoin
+  }
+
+  revalidatePath(`/admin/clients/${id}`);
+  redirect(`/admin/clients/${id}?passwordReset=1`);
 }

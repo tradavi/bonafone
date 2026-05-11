@@ -11,11 +11,18 @@ import {
   Star,
   Award,
   Calendar,
+  Pencil,
+  KeyRound,
+  Trash2,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 import { getAdminClientById } from "@/lib/queries";
 import { formatPrice } from "@/lib/utils";
 import { ORDER_STATUS_STYLES, ORDER_STATUS_LABEL } from "@/lib/order-status";
-import { displayEmail } from "@/lib/synthetic-email";
+import { displayEmail, isSyntheticEmail } from "@/lib/synthetic-email";
+import { deleteClientAdmin, resetClientPasswordAdmin } from "@/lib/actions/admin";
+import { ConfirmSubmitButton } from "@/components/admin/confirm-submit-button";
 
 const REPAIR_STATUS_STYLES: Record<string, string> = {
   RECU: "bg-blue-500/10 text-blue-400 border-blue-500/30",
@@ -42,7 +49,10 @@ const REPAIR_STATUS_LABEL: Record<string, string> = {
   DEMANDE_DEVIS: "Demande de devis",
 };
 
-type Props = { params: Promise<{ id: string }> };
+type Props = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ saved?: string; passwordReset?: string; error?: string }>;
+};
 
 export const dynamic = "force-dynamic";
 
@@ -54,7 +64,8 @@ export async function generateMetadata({ params }: Props) {
   return { title: fullName || client.email };
 }
 
-export default async function AdminClientDetailPage({ params }: Props) {
+export default async function AdminClientDetailPage({ params, searchParams }: Props) {
+  const { saved, passwordReset, error } = await searchParams;
   const { id } = await params;
   const client = await getAdminClientById(id);
   if (!client) notFound();
@@ -68,6 +79,9 @@ export default async function AdminClientDetailPage({ params }: Props) {
     .filter((o) => ["PAID", "PREPARING", "SHIPPED", "DELIVERED"].includes(o.status))
     .reduce((s, o) => s + o.total, 0);
 
+  const canResetPassword = !isSyntheticEmail(client.email);
+  const hasLinkedData = client.orders.length > 0 || client.repairs.length > 0;
+
   return (
     <div className="space-y-4">
       <Link
@@ -77,6 +91,29 @@ export default async function AdminClientDetailPage({ params }: Props) {
         <ArrowLeft className="h-4 w-4" />
         Retour aux clients
       </Link>
+
+      {/* Flash messages */}
+      {saved && (
+        <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-start gap-2 text-sm">
+          <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" />
+          <div>Modifications enregistrées.</div>
+        </div>
+      )}
+      {passwordReset && (
+        <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-start gap-2 text-sm">
+          <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" />
+          <div>
+            <strong>Nouveau mot de passe envoyé</strong> par email au client.
+            Il pourra le modifier ensuite depuis son profil.
+          </div>
+        </div>
+      )}
+      {error && (
+        <div className="p-3 bg-primary/10 border border-primary/30 rounded-xl flex items-start gap-2 text-sm">
+          <AlertCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+          <div>{error}</div>
+        </div>
+      )}
 
       {/* Identité */}
       <div className="bg-surface border border-border rounded-2xl p-6 flex items-center gap-5 flex-wrap">
@@ -119,6 +156,63 @@ export default async function AdminClientDetailPage({ params }: Props) {
           <div className="text-xs text-foreground-muted uppercase tracking-wider">CA cumulé</div>
           <div className="text-2xl font-extrabold text-primary">{formatPrice(totalSpent)}</div>
         </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex flex-wrap gap-2">
+        <Link
+          href={`/admin/clients/${client.id}/edit`}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-surface border border-border hover:border-primary rounded-lg text-sm font-semibold transition"
+        >
+          <Pencil className="h-4 w-4" />
+          Modifier
+        </Link>
+
+        {canResetPassword ? (
+          <form action={resetClientPasswordAdmin}>
+            <input type="hidden" name="id" value={client.id} />
+            <ConfirmSubmitButton
+              message={`Envoyer un nouveau mot de passe à ${displayEmail(client.email)} ?\n\nL'ancien mot de passe sera invalidé.`}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-surface border border-amber-500/30 text-amber-400 hover:bg-amber-500 hover:text-white hover:border-amber-500 rounded-lg text-sm font-semibold transition"
+            >
+              <KeyRound className="h-4 w-4" />
+              Réinitialiser le mot de passe
+            </ConfirmSubmitButton>
+          </form>
+        ) : (
+          <button
+            type="button"
+            disabled
+            title="Ajoutez un email réel pour pouvoir réinitialiser le mot de passe"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-surface border border-border rounded-lg text-sm font-semibold text-foreground-subtle cursor-not-allowed"
+          >
+            <KeyRound className="h-4 w-4" />
+            Réinitialiser le mot de passe
+          </button>
+        )}
+
+        {hasLinkedData ? (
+          <button
+            type="button"
+            disabled
+            title="Ce client a des commandes ou réparations rattachées — suppression bloquée"
+            className="ml-auto inline-flex items-center gap-2 px-4 py-2 bg-surface border border-border rounded-lg text-sm font-semibold text-foreground-subtle cursor-not-allowed"
+          >
+            <Trash2 className="h-4 w-4" />
+            Supprimer
+          </button>
+        ) : (
+          <form action={deleteClientAdmin} className="ml-auto">
+            <input type="hidden" name="id" value={client.id} />
+            <ConfirmSubmitButton
+              message={`Supprimer définitivement ${fullName} ?\n\nCette action est irréversible.`}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 hover:bg-primary text-primary hover:text-white border border-primary/40 rounded-lg text-sm font-semibold transition"
+            >
+              <Trash2 className="h-4 w-4" />
+              Supprimer le client
+            </ConfirmSubmitButton>
+          </form>
+        )}
       </div>
 
       {/* Stats rapides */}

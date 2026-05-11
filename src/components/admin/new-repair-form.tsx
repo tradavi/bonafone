@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Save, UserCheck, X, Search } from "lucide-react";
+import { Save, UserCheck, X, Search, FileText, Wrench } from "lucide-react";
 import { createRepairAdmin } from "@/lib/actions/admin";
+
+type Mode = "repair" | "devis";
 
 const DEVICE_TYPES = [
   { value: "SMARTPHONE", label: "Smartphone" },
@@ -66,7 +68,7 @@ type ClientSuggestion = {
   phone: string | null;
 };
 
-export function NewRepairForm() {
+export function NewRepairForm({ mode = "repair" }: { mode?: Mode }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -135,8 +137,11 @@ export function NewRepairForm() {
     setLinkedClient(null);
   }
 
+  const isDevis = mode === "devis";
+
   return (
     <form action={createRepairAdmin} className="space-y-5">
+      <input type="hidden" name="mode" value={mode} />
       {linkedClient && <input type="hidden" name="clientId" value={linkedClient.id} />}
 
       <Section title="Client">
@@ -329,8 +334,17 @@ export function NewRepairForm() {
           type="submit"
           className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-strong text-white rounded-lg font-semibold transition shadow-[0_0_20px_var(--primary-glow)]"
         >
-          <Save className="h-4 w-4" />
-          Créer & imprimer les tickets
+          {isDevis ? (
+            <>
+              <FileText className="h-4 w-4" />
+              Enregistrer le devis
+            </>
+          ) : (
+            <>
+              <Wrench className="h-4 w-4" />
+              Créer & imprimer les tickets
+            </>
+          )}
         </button>
       </div>
     </form>
