@@ -20,6 +20,7 @@ import {
   Printer,
   Send,
   CheckCircle2,
+  ShieldCheck,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { formatPrice, priceBreakdown, VAT_RATE } from "@/lib/utils";
@@ -214,6 +215,19 @@ export default async function AdminRepairDetailPage({ params, searchParams }: Pr
               <FileText className="h-4 w-4" />
               Devis PDF
             </Link>
+            {/* Garantie : disponible dès que la réparation est prête à
+                récupérer ou déjà restituée. Vert pour signaler "fin de
+                parcours" et c'est l'action finale du dossier. */}
+            {(repair.status === "PRET_RECUPERATION" || repair.status === "RESTITUE" || repair.status === "TERMINE") && (
+              <Link
+                href={`/admin/reparations/${repair.number}/garantie`}
+                target="_blank"
+                className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/40 hover:border-emerald-500 text-emerald-400 rounded-lg text-sm font-medium transition"
+              >
+                <ShieldCheck className="h-4 w-4" />
+                Garantie
+              </Link>
+            )}
           </div>
         </div>
       </div>
