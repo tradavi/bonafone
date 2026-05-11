@@ -11,7 +11,6 @@ const NAV = [
   { label: "Ordinateurs", href: "/boutique/ordinateurs" },
   { label: "Accessoires", href: "/boutique/accessoires" },
   { label: "Réparations", href: "/reparations", icon: Wrench },
-  { label: "Témoignages", href: "/temoignages" },
 ];
 
 export function NavLinks() {

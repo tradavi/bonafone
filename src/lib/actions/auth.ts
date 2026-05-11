@@ -32,12 +32,28 @@ export async function signInAction(formData: FormData) {
   }
 
   const { email, password, callbackUrl } = parsed.data;
+  const lowerEmail = email.toLowerCase();
+
+  // Détermine la destination par défaut selon le rôle.
+  // signIn() jette un NEXT_REDIRECT — impossible de lire la session après
+  // l'appel — donc on lit le rôle EN AMONT depuis la DB. Email/password sont
+  // validés par signIn lui-même ; ici on ne fait qu'une lecture du rôle.
+  let defaultTarget = "/compte";
+  try {
+    const dbUser = await prisma.user.findUnique({
+      where: { email: lowerEmail },
+      select: { role: true },
+    });
+    if (dbUser?.role === "ADMIN") defaultTarget = "/admin";
+  } catch {
+    // DB indisponible : on garde /compte comme fallback safe.
+  }
 
   try {
     await signIn("credentials", {
-      email: email.toLowerCase(),
+      email: lowerEmail,
       password,
-      redirectTo: callbackUrl || "/compte",
+      redirectTo: callbackUrl || defaultTarget,
     });
   } catch (err) {
     // signIn() jette une erreur de redirect spéciale en cas de succès — il faut la laisser remonter.

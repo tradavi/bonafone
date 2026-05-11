@@ -27,6 +27,10 @@ export async function TopBar() {
             Réclamations
           </Link>
           <span className="text-border-strong">|</span>
+          <Link href="/temoignages" className="hover:text-primary transition">
+            Témoignages
+          </Link>
+          <span className="text-border-strong">|</span>
           <Link href="/contact" className="hover:text-primary transition">
             Contact
           </Link>

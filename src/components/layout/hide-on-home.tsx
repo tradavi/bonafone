@@ -3,10 +3,17 @@
 import { usePathname } from "next/navigation";
 
 /**
- * Pages où la navigation boutique (TopBar publique non concernée, NavLinks,
- * search bar, panier, favoris) doit être masquée pour offrir une UX épurée
- * centrée sur la tâche en cours.
+ * 🚧 Mode "réparation seule" — TEMPORAIRE
+ * Tant qu'il n'y a pas de catalogue produits actif, on masque tout ce qui
+ * relève de l'e-commerce : NavLinks (Smartphones/Tablettes/...), barre de
+ * recherche, favoris, panier. Le site se concentre sur le service réparation.
+ *
+ * 👉 Pour réactiver la boutique : passe `ECOMMERCE_ENABLED` à `true`. Les
+ * règles MINIMAL_PATHS/MINIMAL_PREFIXES reprennent alors leur rôle d'origine
+ * (cacher la nav uniquement sur les pages focalisées).
  */
+const ECOMMERCE_ENABLED = false;
+
 const MINIMAL_PATHS = [
   "/", // home (service réparation)
   "/reclamations", // formulaire réclamation
@@ -25,14 +32,10 @@ function isMinimalPath(pathname: string): boolean {
   );
 }
 
-/**
- * Wrapper client : masque ses enfants sur les pages "focalisées" (home,
- * réclamation, contact, suivi réparation, comptes client/admin) afin d'offrir
- * une UX sans distraction. Sur les pages boutique/produit/checkout, les
- * enfants sont rendus normalement.
- */
 export function HideOnHome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  // Mode "réparation seule" : on masque partout.
+  if (!ECOMMERCE_ENABLED) return null;
   if (isMinimalPath(pathname)) return null;
   return <>{children}</>;
 }
