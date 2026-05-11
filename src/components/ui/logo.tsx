@@ -1,8 +1,19 @@
 import { cn } from "@/lib/utils";
 
+// =====================================================
+// LOGO BONAFONE
+// =====================================================
+// Image officielle : public/bonafone-logo.png (b stylisé + ondes signal +
+// wordmark "BONAFONE" + tagline "L'EXPERT EN RÉPARATION").
+//
+// LogoFull = image complète (icône + wordmark + tagline)
+// LogoMark = SVG fallback icône-seule, conservé pour les endroits compacts
+//            (favicon, notification bell, sidebar admin) où on n'a pas la
+//            place pour le wordmark.
+
 /**
- * Marque Bonafone : carré arrondi rouge avec un "b" stylisé
- * et 2 ondes signal/wifi rayonnant vers le coin supérieur droit.
+ * Icône seule — SVG "b" rouge + ondes signal.
+ * Conservée pour les zones compactes (favicon, sidebar admin).
  */
 export function LogoMark({ className }: { className?: string }) {
   return (
@@ -48,27 +59,25 @@ export function LogoMark({ className }: { className?: string }) {
   );
 }
 
-/** Logo complet avec wordmark BONAFONE et tagline. */
+/**
+ * Logo complet officiel — image PNG hostée dans public/.
+ * Inclut l'icône, le wordmark "BONAFONE" et la tagline "L'EXPERT EN
+ * RÉPARATION" en un seul élément graphique. Utilisé dans le header public,
+ * les emails, et les documents imprimés (devis PDF, tickets).
+ */
 export function LogoFull({
   className,
-  showTagline = true,
 }: {
   className?: string;
+  /** Conservé pour compat — la tagline est désormais intégrée à l'image. */
   showTagline?: boolean;
 }) {
   return (
-    <div className={cn("flex items-center gap-3", className)}>
-      <LogoMark className="h-10 w-auto shrink-0" />
-      <div className="leading-none">
-        <div className="text-2xl font-black tracking-tight text-primary">
-          BONAFONE
-        </div>
-        {showTagline && (
-          <div className="text-[9px] uppercase tracking-[0.18em] text-foreground-muted mt-1">
-            L&apos;expert en réparation
-          </div>
-        )}
-      </div>
-    </div>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/bonafone-logo.png"
+      alt="Bonafone — L'expert en réparation"
+      className={cn("h-12 w-auto", className)}
+    />
   );
 }

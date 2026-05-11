@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { formatPrice, priceBreakdown, VAT_RATE, STORE } from "@/lib/utils";
-import { LogoMark } from "@/components/ui/logo";
+import { LogoFull } from "@/components/ui/logo";
 import { PrintButton } from "./print-button";
 
 type Props = { params: Promise<{ ref: string }> };
@@ -50,19 +50,9 @@ export default async function DevisPrintPage({ params }: Props) {
         </div>
 
         <div className="print-page max-w-[800px] mx-auto bg-white border border-zinc-200 rounded-lg shadow-sm p-10">
-          {/* Header */}
-          <div className="flex items-start justify-between pb-6 border-b-2 border-[#ff2d3a]">
-            <div className="flex items-center gap-3">
-              <LogoMark className="h-12 w-auto" />
-              <div>
-                <div className="text-2xl font-black text-[#ff2d3a] tracking-tight">
-                  BONAFONE
-                </div>
-                <div className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-                  L&apos;expert en réparation
-                </div>
-              </div>
-            </div>
+          {/* Header — logo officiel (image PNG incluant wordmark + tagline) */}
+          <div className="flex items-start justify-between pb-6 border-b-2 border-[#ff2d3a] gap-4 flex-wrap">
+            <LogoFull className="h-16 w-auto" />
             <div className="text-right text-xs text-zinc-600">
               <div>{STORE.address}</div>
               <div>Tél : {STORE.phone}</div>

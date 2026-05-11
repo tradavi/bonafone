@@ -201,30 +201,21 @@ function sectionTitle(text: string): string {
 }
 
 /**
- * Header type "facture" : logo gauche + coordonnées magasin droite.
+ * Header type "facture" : logo image gauche + coordonnées magasin droite.
  * Reprend la signature visuelle du PDF devis (bordure rouge épaisse en bas).
+ *
+ * Logo image : hostée publiquement (/bonafone-logo.png). Si le client mail
+ * bloque les images (politique par défaut sur Outlook/Gmail à la 1re ouverture),
+ * le `alt` textuel s'affiche en rouge gras à la place.
  */
 function letterheadBlock(): string {
+  const logoUrl = `${baseUrl()}/bonafone-logo.png`;
   return `
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
       <tr>
-        <!-- Logo + nom + tagline -->
+        <!-- Logo image -->
         <td style="vertical-align:middle">
-          <table role="presentation" cellspacing="0" cellpadding="0" border="0">
-            <tr>
-              <td style="vertical-align:middle">
-                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="44" height="44" style="background:${COLORS.primary};border-radius:10px">
-                  <tr>
-                    <td align="center" valign="middle" height="44" style="height:44px;font-family:'Arial Black',Arial,sans-serif;color:#ffffff;font-size:28px;font-weight:900;line-height:44px">b</td>
-                  </tr>
-                </table>
-              </td>
-              <td style="padding-left:14px;vertical-align:middle">
-                <div style="font-size:22px;font-weight:900;color:${COLORS.primary};letter-spacing:-0.5px;line-height:1;font-family:${FONT_STACK}">BONAFONE</div>
-                <div style="font-size:9px;color:${COLORS.subtle};letter-spacing:2px;text-transform:uppercase;margin-top:5px;font-family:${FONT_STACK};font-weight:600">${escapeHtml(STORE.tagline)}</div>
-              </td>
-            </tr>
-          </table>
+          <img src="${logoUrl}" alt="${escapeHtml(STORE.name)} — ${escapeHtml(STORE.tagline)}" width="180" style="display:block;height:auto;max-width:180px;border:0;outline:none;text-decoration:none;color:${COLORS.primary};font-family:${FONT_STACK};font-weight:900;font-size:22px" />
         </td>
         <!-- Coordonnées magasin (cachées sur très petits écrans) -->
         <td align="right" style="vertical-align:middle;font-size:11px;color:${COLORS.muted};line-height:1.55;font-family:${FONT_STACK}" class="store-info">
