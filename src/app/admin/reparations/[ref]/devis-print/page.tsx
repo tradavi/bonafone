@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { formatPrice, STORE } from "@/lib/utils";
+import { formatPrice, priceBreakdown, VAT_RATE, STORE } from "@/lib/utils";
 import { LogoMark } from "@/components/ui/logo";
 import { PrintButton } from "./print-button";
 
@@ -21,8 +21,11 @@ export default async function DevisPrintPage({ params }: Props) {
   });
   if (!repair) notFound();
 
-  const partsTotal = repair.parts.reduce((sum, p) => sum + p.cost, 0);
-  const labor = (repair.estimatedCost ?? 0) - partsTotal;
+  // Tous les montants stockés sont TTC — on décompose pour l'affichage légal.
+  const partsTotalTtc = repair.parts.reduce((sum, p) => sum + p.cost, 0);
+  const totalTtc = repair.estimatedCost ?? 0;
+  const laborTtc = Math.max(0, totalTtc - partsTotalTtc);
+  const totals = priceBreakdown(totalTtc);
   const today = new Date().toLocaleDateString("fr-FR", {
     day: "numeric",
     month: "long",
@@ -117,12 +120,13 @@ export default async function DevisPrintPage({ params }: Props) {
             </div>
           </div>
 
-          {/* Détail des coûts */}
+          {/* Détail des coûts — colonnes HT et TTC, TVA totale en bas */}
           <table className="w-full text-sm mb-6">
             <thead>
               <tr className="border-b-2 border-zinc-300 text-left text-xs uppercase tracking-wider text-zinc-500">
                 <th className="py-2 font-semibold">Désignation</th>
-                <th className="py-2 font-semibold text-right">Montant HT</th>
+                <th className="py-2 font-semibold text-right">HT</th>
+                <th className="py-2 font-semibold text-right">TTC</th>
               </tr>
             </thead>
             <tbody>
@@ -130,37 +134,58 @@ export default async function DevisPrintPage({ params }: Props) {
                 <tr className="border-b border-zinc-200">
                   <td className="py-3">Pièces (à définir)</td>
                   <td className="py-3 text-right text-zinc-400">—</td>
+                  <td className="py-3 text-right text-zinc-400">—</td>
                 </tr>
               ) : (
-                repair.parts.map((p) => (
-                  <tr key={p.id} className="border-b border-zinc-200">
+                repair.parts.map((p) => {
+                  const b = priceBreakdown(p.cost);
+                  return (
+                    <tr key={p.id} className="border-b border-zinc-200">
+                      <td className="py-3">
+                        <div className="font-medium">{p.name}</div>
+                        {p.supplier && (
+                          <div className="text-xs text-zinc-500">{p.supplier}</div>
+                        )}
+                      </td>
+                      <td className="py-3 text-right font-mono">{formatPrice(b.ht)}</td>
+                      <td className="py-3 text-right font-mono">{formatPrice(b.ttc)}</td>
+                    </tr>
+                  );
+                })
+              )}
+              {laborTtc > 0 && (() => {
+                const b = priceBreakdown(laborTtc);
+                return (
+                  <tr className="border-b border-zinc-200">
                     <td className="py-3">
-                      <div className="font-medium">{p.name}</div>
-                      {p.supplier && (
-                        <div className="text-xs text-zinc-500">{p.supplier}</div>
-                      )}
+                      <div className="font-medium">Main d&apos;œuvre</div>
+                      <div className="text-xs text-zinc-500">
+                        Démontage, réparation, tests, remontage
+                      </div>
                     </td>
-                    <td className="py-3 text-right font-mono">{formatPrice(p.cost)}</td>
+                    <td className="py-3 text-right font-mono">{formatPrice(b.ht)}</td>
+                    <td className="py-3 text-right font-mono">{formatPrice(b.ttc)}</td>
                   </tr>
-                ))
-              )}
-              {labor > 0 && (
-                <tr className="border-b border-zinc-200">
-                  <td className="py-3">
-                    <div className="font-medium">Main d&apos;œuvre</div>
-                    <div className="text-xs text-zinc-500">
-                      Démontage, réparation, tests, remontage
-                    </div>
-                  </td>
-                  <td className="py-3 text-right font-mono">{formatPrice(labor)}</td>
-                </tr>
-              )}
+                );
+              })()}
             </tbody>
             <tfoot>
-              <tr className="border-t-2 border-zinc-300">
-                <td className="py-3 font-bold">TOTAL TTC</td>
-                <td className="py-3 text-right text-2xl font-black text-[#ff2d3a] font-mono">
-                  {formatPrice(repair.estimatedCost ?? 0)}
+              <tr className="border-t-2 border-zinc-300 text-sm">
+                <td className="py-2 font-semibold">Sous-total HT</td>
+                <td colSpan={2} className="py-2 text-right font-mono font-semibold">
+                  {formatPrice(totals.ht)}
+                </td>
+              </tr>
+              <tr className="text-sm text-zinc-600">
+                <td className="py-1.5">TVA {(VAT_RATE * 100).toFixed(0)} %</td>
+                <td colSpan={2} className="py-1.5 text-right font-mono">
+                  {formatPrice(totals.vat)}
+                </td>
+              </tr>
+              <tr className="border-t-2 border-zinc-400">
+                <td className="py-3 font-bold text-base">TOTAL TTC</td>
+                <td colSpan={2} className="py-3 text-right text-2xl font-black text-[#ff2d3a] font-mono">
+                  {formatPrice(totals.ttc)}
                 </td>
               </tr>
             </tfoot>

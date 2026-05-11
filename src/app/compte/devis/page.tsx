@@ -2,7 +2,7 @@ import Link from "next/link";
 import { FileText, Plus, ArrowRight, MailOpen } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, priceBreakdown } from "@/lib/utils";
 
 export const metadata = { title: "Mes devis" };
 export const dynamic = "force-dynamic";
@@ -95,7 +95,10 @@ export default async function MesDevisPage() {
                     <>
                       {" · "}
                       <span className="text-foreground font-semibold">
-                        Devis : {formatPrice(d.estimatedCost)}
+                        TTC {formatPrice(d.estimatedCost)}
+                        <span className="text-foreground-subtle font-normal ml-1">
+                          (HT {formatPrice(priceBreakdown(d.estimatedCost).ht)})
+                        </span>
                       </span>
                     </>
                   )}

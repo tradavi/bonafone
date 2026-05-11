@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Search, FileText, ArrowRight, Wrench, MailOpen, Send, Plus } from "lucide-react";
 import { getAllDevisRequests } from "@/lib/queries";
 import { convertDevisToRepair, sendRepairQuote } from "@/lib/actions/repairs";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, priceBreakdown } from "@/lib/utils";
 
 export const metadata = { title: "Demandes de devis" };
 export const dynamic = "force-dynamic";
@@ -127,9 +127,15 @@ export default async function AdminDevisPage({ searchParams }: Props) {
                     <td className="px-4 py-3 text-foreground-muted">{r.issueType}</td>
                     <td className="px-4 py-3">
                       {r.estimatedCost != null ? (
-                        <span className="font-semibold tabular-nums text-primary">
-                          {formatPrice(r.estimatedCost)}
-                        </span>
+                        <div className="leading-tight">
+                          <div className="font-semibold tabular-nums text-primary">
+                            {formatPrice(r.estimatedCost)}{" "}
+                            <span className="text-[10px] font-normal text-foreground-muted">TTC</span>
+                          </div>
+                          <div className="text-[11px] text-foreground-muted tabular-nums">
+                            HT {formatPrice(priceBreakdown(r.estimatedCost).ht)}
+                          </div>
+                        </div>
                       ) : (
                         <Link
                           href={`/admin/reparations/${r.number}`}

@@ -394,8 +394,8 @@ export async function sendRepairQuote(formData: FormData) {
     number: repair.number,
     device: `${repair.brand} ${repair.model}`,
     issueType: repair.issueType,
-    estimatedCost: formatPrice(repair.estimatedCost),
-    parts: repair.parts.map((p) => ({ name: p.name, cost: p.cost })),
+    totalTtc: repair.estimatedCost,
+    parts: repair.parts.map((p) => ({ name: p.name, costTtc: p.cost })),
     message,
   });
 

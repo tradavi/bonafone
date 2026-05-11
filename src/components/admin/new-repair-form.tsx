@@ -310,7 +310,7 @@ export function NewRepairForm({ mode = "repair" }: { mode?: Mode }) {
             ))}
           </SelectStatic>
           <FieldStatic
-            label="Devis estimé (€)"
+            label="Devis estimé TTC (€)"
             name="estimatedCost"
             type="number"
             step="0.01"

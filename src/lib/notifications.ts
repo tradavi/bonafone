@@ -143,26 +143,39 @@ export function tplRepairQuote(opts: {
   number: string;
   device: string;
   issueType: string;
-  estimatedCost: string;
-  parts: { name: string; cost: number }[];
+  totalTtc: number;
+  parts: { name: string; costTtc: number }[];
   message?: string;
 }) {
-  const subject = `Devis ${opts.number} — ${opts.estimatedCost}`;
+  // Décomposition TVA belge (21%) calculée ici pour cohérence avec le PDF.
+  const VAT = 0.21;
+  const fmt = (n: number) =>
+    new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(n);
+  const breakdown = (ttc: number) => {
+    const ht = Math.round((ttc / (1 + VAT)) * 100) / 100;
+    return { ht, vat: Math.round((ttc - ht) * 100) / 100, ttc };
+  };
+  const totals = breakdown(opts.totalTtc);
+
+  const subject = `Devis ${opts.number} — ${fmt(opts.totalTtc)} TTC`;
   const trackUrl = `${baseUrl()}/reparations/suivi?ref=${opts.number}`;
   const partsHtml = opts.parts.length
     ? `<table style="width:100%;border-collapse:collapse;margin:12px 0;font-size:13px">
         <thead><tr style="text-align:left;color:#a3a3a3;font-size:11px;text-transform:uppercase;letter-spacing:0.05em">
           <th style="padding:6px 0;border-bottom:1px solid #262626">Pièce</th>
-          <th style="padding:6px 0;border-bottom:1px solid #262626;text-align:right">Prix</th>
+          <th style="padding:6px 0;border-bottom:1px solid #262626;text-align:right">HT</th>
+          <th style="padding:6px 0;border-bottom:1px solid #262626;text-align:right">TTC</th>
         </tr></thead>
         <tbody>
         ${opts.parts
-          .map(
-            (p) => `<tr>
-            <td style="padding:6px 0;border-bottom:1px solid #1f1f1f">${escapeHtml(p.name)}</td>
-            <td style="padding:6px 0;border-bottom:1px solid #1f1f1f;text-align:right;color:#a3a3a3">${p.cost.toFixed(2)} €</td>
-          </tr>`,
-          )
+          .map((p) => {
+            const b = breakdown(p.costTtc);
+            return `<tr>
+              <td style="padding:6px 0;border-bottom:1px solid #1f1f1f">${escapeHtml(p.name)}</td>
+              <td style="padding:6px 0;border-bottom:1px solid #1f1f1f;text-align:right;color:#a3a3a3">${fmt(b.ht)}</td>
+              <td style="padding:6px 0;border-bottom:1px solid #1f1f1f;text-align:right">${fmt(b.ttc)}</td>
+            </tr>`;
+          })
           .join("")}
         </tbody>
        </table>`
@@ -172,10 +185,20 @@ export function tplRepairQuote(opts: {
     <p>Voici notre proposition de devis pour la réparation de votre <strong>${escapeHtml(opts.device)}</strong> (${escapeHtml(opts.issueType)}).</p>
     <p>Numéro de dossier : <strong style="color:#ef4444;font-family:ui-monospace,Menlo,monospace">${opts.number}</strong></p>
     ${partsHtml}
-    <div style="background:#1f1f1f;border:1px solid #262626;border-radius:10px;padding:14px 18px;margin:16px 0;display:flex;justify-content:space-between;align-items:baseline">
-      <span style="color:#a3a3a3;font-size:13px">Montant estimé</span>
-      <strong style="font-size:20px;color:#ef4444">${escapeHtml(opts.estimatedCost)}</strong>
-    </div>
+    <table style="width:100%;border-collapse:collapse;margin:16px 0;background:#1f1f1f;border:1px solid #262626;border-radius:10px;overflow:hidden">
+      <tr style="font-size:13px;color:#a3a3a3">
+        <td style="padding:10px 16px">Sous-total HT</td>
+        <td style="padding:10px 16px;text-align:right;font-family:ui-monospace,Menlo,monospace">${fmt(totals.ht)}</td>
+      </tr>
+      <tr style="font-size:13px;color:#a3a3a3;border-top:1px solid #262626">
+        <td style="padding:10px 16px">TVA 21 %</td>
+        <td style="padding:10px 16px;text-align:right;font-family:ui-monospace,Menlo,monospace">${fmt(totals.vat)}</td>
+      </tr>
+      <tr style="border-top:1px solid #262626">
+        <td style="padding:12px 16px;font-weight:700">Total TTC</td>
+        <td style="padding:12px 16px;text-align:right;font-size:20px;font-weight:700;color:#ef4444;font-family:ui-monospace,Menlo,monospace">${fmt(totals.ttc)}</td>
+      </tr>
+    </table>
     ${opts.message ? `<p style="color:#a3a3a3;white-space:pre-line">${escapeHtml(opts.message)}</p>` : ""}
     <p>Pour valider ce devis, répondez à cet email ou rendez-vous sur le suivi de votre dossier.</p>
     <p><a href="${trackUrl}" style="display:inline-block;background:#ef4444;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:600">Suivre mon dossier</a></p>

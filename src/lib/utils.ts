@@ -13,6 +13,42 @@ export function formatPrice(value: number | string, currency = "EUR") {
   }).format(num);
 }
 
+// =====================================================
+// TVA — Belgique (taux standard 21%)
+// =====================================================
+// Convention Bonafone : les prix stockés en DB (Repair.estimatedCost,
+// Repair.finalCost, RepairPart.cost, Product.price) sont en TTC (ce que
+// le client paie au final). Le HT et la TVA sont calculés à l'affichage
+// pour les devis et factures (mentions légales obligatoires en Belgique).
+export const VAT_RATE = 0.21;
+
+/**
+ * Décompose un montant TTC en {ht, vat, ttc}.
+ * Le HT est arrondi à 2 décimales pour cohérence d'affichage,
+ * la TVA est recalculée comme TTC - HT pour éviter les écarts d'arrondi.
+ */
+export function priceBreakdown(ttc: number): {
+  ht: number;
+  vat: number;
+  ttc: number;
+} {
+  if (!Number.isFinite(ttc) || ttc <= 0) {
+    return { ht: 0, vat: 0, ttc: 0 };
+  }
+  const htRaw = ttc / (1 + VAT_RATE);
+  const ht = Math.round(htRaw * 100) / 100;
+  const vat = Math.round((ttc - ht) * 100) / 100;
+  return { ht, vat, ttc };
+}
+
+/**
+ * Format compact "HT 21,00 € · TTC 25,41 €" pour affichage dans listings.
+ */
+export function formatPriceHtTtc(ttc: number): string {
+  const { ht } = priceBreakdown(ttc);
+  return `HT ${formatPrice(ht)} · TTC ${formatPrice(ttc)}`;
+}
+
 export function formatDate(date: Date | string) {
   const d = typeof date === "string" ? new Date(date) : date;
   return new Intl.DateTimeFormat("fr-FR", {

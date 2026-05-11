@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Wrench, Plus, ArrowRight } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, priceBreakdown } from "@/lib/utils";
 
 export const metadata = { title: "Mes réparations" };
 export const dynamic = "force-dynamic";
@@ -113,7 +113,10 @@ export default async function MesReparationsPage() {
                     <>
                       {" · "}
                       <span className="text-foreground">
-                        Devis : {formatPrice(r.estimatedCost)}
+                        Devis TTC : {formatPrice(r.estimatedCost)}
+                        <span className="text-foreground-subtle ml-1">
+                          (HT {formatPrice(priceBreakdown(r.estimatedCost).ht)})
+                        </span>
                       </span>
                     </>
                   )}

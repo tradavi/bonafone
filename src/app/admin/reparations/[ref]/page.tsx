@@ -21,7 +21,7 @@ import {
   Send,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, priceBreakdown, VAT_RATE } from "@/lib/utils";
 import {
   updateRepairStatus,
   updateRepairCost,
@@ -399,7 +399,10 @@ export default async function AdminRepairDetailPage({ params }: Props) {
             right={
               partsTotal > 0 ? (
                 <span className="text-sm font-bold text-primary">
-                  Total : {formatPrice(partsTotal)}
+                  Total TTC : {formatPrice(partsTotal)}
+                  <span className="text-xs text-foreground-muted ml-1.5 font-normal">
+                    (HT {formatPrice(priceBreakdown(partsTotal).ht)})
+                  </span>
                 </span>
               ) : null
             }
@@ -410,7 +413,9 @@ export default async function AdminRepairDetailPage({ params }: Props) {
               </p>
             ) : (
               <div className="space-y-2 mb-5">
-                {repair.parts.map((p) => (
+                {repair.parts.map((p) => {
+                  const pb = priceBreakdown(p.cost);
+                  return (
                   <div
                     key={p.id}
                     className="flex items-center justify-between p-3 bg-surface-2 border border-border rounded-lg"
@@ -423,7 +428,12 @@ export default async function AdminRepairDetailPage({ params }: Props) {
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="font-semibold">{formatPrice(p.cost)}</span>
+                      <span className="font-semibold">
+                        {formatPrice(p.cost)}
+                        <span className="text-xs text-foreground-muted ml-1.5 font-normal">
+                          (HT {formatPrice(pb.ht)})
+                        </span>
+                      </span>
                       <form action={deleteRepairPart}>
                         <input type="hidden" name="partId" value={p.id} />
                         <button
@@ -436,7 +446,8 @@ export default async function AdminRepairDetailPage({ params }: Props) {
                       </form>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
@@ -451,7 +462,7 @@ export default async function AdminRepairDetailPage({ params }: Props) {
                 <input name="supplier" placeholder="DVK, etc." className={inputCls} />
               </div>
               <div>
-                <label className="block text-xs text-foreground-muted mb-1">Coût (€)</label>
+                <label className="block text-xs text-foreground-muted mb-1">Coût TTC (€)</label>
                 <input
                   name="cost"
                   type="number"
@@ -506,7 +517,7 @@ export default async function AdminRepairDetailPage({ params }: Props) {
               <input type="hidden" name="repairId" value={repair.id} />
               <div>
                 <label className="block text-xs text-foreground-muted mb-1">
-                  Coût estimé (devis)
+                  Coût estimé TTC (devis)
                 </label>
                 <div className="relative">
                   <input
@@ -521,10 +532,20 @@ export default async function AdminRepairDetailPage({ params }: Props) {
                     €
                   </span>
                 </div>
+                {repair.estimatedCost != null && repair.estimatedCost > 0 && (
+                  <div className="text-[11px] text-foreground-muted mt-1 flex justify-between">
+                    <span>
+                      HT : <span className="font-mono">{formatPrice(priceBreakdown(repair.estimatedCost).ht)}</span>
+                    </span>
+                    <span>
+                      TVA {(VAT_RATE * 100).toFixed(0)} % : <span className="font-mono">{formatPrice(priceBreakdown(repair.estimatedCost).vat)}</span>
+                    </span>
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-xs text-foreground-muted mb-1">
-                  Coût final (facture)
+                  Coût final TTC (facture)
                 </label>
                 <div className="relative">
                   <input
@@ -539,6 +560,16 @@ export default async function AdminRepairDetailPage({ params }: Props) {
                     €
                   </span>
                 </div>
+                {repair.finalCost != null && repair.finalCost > 0 && (
+                  <div className="text-[11px] text-foreground-muted mt-1 flex justify-between">
+                    <span>
+                      HT : <span className="font-mono">{formatPrice(priceBreakdown(repair.finalCost).ht)}</span>
+                    </span>
+                    <span>
+                      TVA {(VAT_RATE * 100).toFixed(0)} % : <span className="font-mono">{formatPrice(priceBreakdown(repair.finalCost).vat)}</span>
+                    </span>
+                  </div>
+                )}
               </div>
               <button
                 type="submit"
@@ -552,12 +583,18 @@ export default async function AdminRepairDetailPage({ params }: Props) {
             {partsTotal > 0 && repair.estimatedCost && (
               <div className="mt-4 pt-4 border-t border-border text-xs text-foreground-muted space-y-1">
                 <div className="flex justify-between">
-                  <span>Pièces</span>
-                  <span>{formatPrice(partsTotal)}</span>
+                  <span>Pièces (TTC)</span>
+                  <span className="font-mono">{formatPrice(partsTotal)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Main d&apos;œuvre estimée</span>
-                  <span>{formatPrice(repair.estimatedCost - partsTotal)}</span>
+                  <span>Main d&apos;œuvre estimée (TTC)</span>
+                  <span className="font-mono">{formatPrice(repair.estimatedCost - partsTotal)}</span>
+                </div>
+                <div className="flex justify-between pt-1 border-t border-border mt-1.5">
+                  <span className="text-foreground font-semibold">Total HT</span>
+                  <span className="font-mono font-semibold text-foreground">
+                    {formatPrice(priceBreakdown(repair.estimatedCost).ht)}
+                  </span>
                 </div>
               </div>
             )}
