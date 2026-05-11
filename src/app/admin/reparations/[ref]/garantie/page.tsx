@@ -232,16 +232,14 @@ export default async function GarantiePage({ params, searchParams }: Props) {
               </div>
             )}
 
-            {/* Date de restitution — phrase complete (label "RESTITUÉ LE" + date
-                bien decalee à droite pour respirer visuellement) */}
+            {/* Date de restitution — phrase complete sur une ligne, leger
+                espacement entre le label et la date (pas a l'extreme droite) */}
             <div className="border-t border-dashed border-black mt-2 pt-2 space-y-1">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-4">
                 <div className="text-[12px] font-bold uppercase tracking-wider">
                   Restitué le
                 </div>
-                <div className="text-[13px] flex-1 text-right">
-                  {formatDate(restitutionDate)}
-                </div>
+                <div className="text-[13px]">{formatDate(restitutionDate)}</div>
               </div>
               {restitutionEvent?.comment && (
                 <div className="text-[11px] mt-1 italic">{restitutionEvent.comment}</div>
@@ -278,8 +276,8 @@ export default async function GarantiePage({ params, searchParams }: Props) {
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex gap-1">
-      <div className="text-[12px] font-bold uppercase tracking-wider w-14 shrink-0">{label}</div>
+    <div className="flex gap-3">
+      <div className="text-[12px] font-bold uppercase tracking-wider w-16 shrink-0">{label}</div>
       <div className="text-[13px] flex-1 break-words">{value}</div>
     </div>
   );
