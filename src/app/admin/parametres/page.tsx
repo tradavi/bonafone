@@ -31,7 +31,8 @@ import {
   getStoreApiKeysStatus,
 } from "@/lib/store-settings";
 import { isEncryptionConfigured } from "@/lib/encryption";
-import { updateStoreSettings } from "@/lib/actions/settings";
+import { updateStoreSettings, sendTestEmail, sendTestSms } from "@/lib/actions/settings";
+import { auth } from "@/auth";
 
 export const metadata = { title: "Paramètres" };
 export const dynamic = "force-dynamic";
@@ -39,14 +40,25 @@ export const dynamic = "force-dynamic";
 const inputCls =
   "w-full px-3 py-2 bg-surface-2 border border-border rounded-lg text-sm focus:outline-none focus:border-primary placeholder:text-foreground-subtle";
 
-type Props = { searchParams: Promise<{ updated?: string; error?: string }> };
+type Props = {
+  searchParams: Promise<{
+    updated?: string;
+    error?: string;
+    testEmail?: "ok" | "error";
+    testSms?: "ok" | "error";
+    msg?: string;
+    to?: string;
+  }>;
+};
 
 export default async function AdminSettingsPage({ searchParams }: Props) {
-  const { updated, error } = await searchParams;
+  const { updated, error, testEmail, testSms, msg, to } = await searchParams;
   const settings = await getStoreSettings();
   const keyStatus = await getStoreApiKeysStatus();
   const callbackBase = process.env.AUTH_URL ?? "http://localhost:3000";
   const encryptionOn = isEncryptionConfigured();
+  const session = await auth();
+  const adminEmail = session?.user?.email ?? "";
 
   return (
     <div className="space-y-5">
@@ -70,6 +82,34 @@ export default async function AdminSettingsPage({ searchParams }: Props) {
         <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 text-sm flex items-center gap-2 text-emerald-400">
           <CheckCircle2 className="h-4 w-4 shrink-0" />
           Paramètres enregistrés.
+        </div>
+      )}
+      {testEmail === "ok" && (
+        <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 text-sm flex items-center gap-2 text-emerald-400">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          ✉️ Email de test envoyé à <strong>{to}</strong>. Vérifie ta boîte de réception (et les spams).
+        </div>
+      )}
+      {testEmail === "error" && (
+        <div className="bg-primary/10 border border-primary/30 rounded-xl p-3 text-sm flex items-start gap-2 text-primary">
+          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+          <div>
+            <strong>Échec de l&apos;envoi email.</strong> {msg ? <span className="text-foreground-muted">{msg}</span> : null}
+          </div>
+        </div>
+      )}
+      {testSms === "ok" && (
+        <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 text-sm flex items-center gap-2 text-emerald-400">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          📱 SMS de test envoyé à <strong>{to}</strong>.
+        </div>
+      )}
+      {testSms === "error" && (
+        <div className="bg-primary/10 border border-primary/30 rounded-xl p-3 text-sm flex items-start gap-2 text-primary">
+          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+          <div>
+            <strong>Échec de l&apos;envoi SMS.</strong> {msg ? <span className="text-foreground-muted">{msg}</span> : null}
+          </div>
         </div>
       )}
 
@@ -342,6 +382,89 @@ export default async function AdminSettingsPage({ searchParams }: Props) {
           </button>
         </div>
       </form>
+
+      {/* Tests d'envoi — séparé du form principal pour ne pas déclencher updateStoreSettings */}
+      <div className="bg-surface border border-border rounded-2xl p-5 space-y-4">
+        <div>
+          <div className="font-extrabold tracking-tight mb-1 flex items-center gap-2">
+            <Send className="h-4 w-4 text-primary" />
+            Tester les notifications
+          </div>
+          <p className="text-xs text-foreground-muted">
+            Après avoir enregistré les clés, vérifie que l&apos;envoi fonctionne en
+            envoyant un email/SMS de test à toi-même.
+          </p>
+        </div>
+
+        {/* Test email */}
+        <form
+          action={sendTestEmail}
+          className="grid sm:grid-cols-[1fr_auto] gap-2 items-end"
+        >
+          <div>
+            <label className="block text-xs text-foreground-muted mb-1">
+              Destinataire de test (email)
+            </label>
+            <input
+              name="testTo"
+              type="email"
+              defaultValue={adminEmail}
+              placeholder="votre@email.com"
+              className={inputCls}
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={!keyStatus.brevoApiKey || !keyStatus.brevoFromEmail}
+            title={
+              !keyStatus.brevoApiKey || !keyStatus.brevoFromEmail
+                ? "Configure d'abord Brevo (clé API + email expéditeur)"
+                : ""
+            }
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-primary hover:bg-primary-strong text-white rounded-lg text-sm font-semibold transition shadow-[0_0_18px_var(--primary-glow)] disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
+          >
+            <Send className="h-4 w-4" />
+            Envoyer un email test
+          </button>
+        </form>
+
+        {/* Test SMS */}
+        <form
+          action={sendTestSms}
+          className="grid sm:grid-cols-[1fr_auto] gap-2 items-end"
+        >
+          <div>
+            <label className="block text-xs text-foreground-muted mb-1">
+              Destinataire de test (SMS, format +32…)
+            </label>
+            <input
+              name="testTo"
+              type="tel"
+              placeholder="+32477112233"
+              className={inputCls}
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={
+              !keyStatus.twilioAccountSid ||
+              !keyStatus.twilioAuthToken ||
+              !keyStatus.twilioFromNumber
+            }
+            title={
+              !keyStatus.twilioAccountSid ||
+              !keyStatus.twilioAuthToken ||
+              !keyStatus.twilioFromNumber
+                ? "Configure d'abord Twilio (SID + token + numéro)"
+                : ""
+            }
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-surface-2 border border-border hover:border-primary text-foreground rounded-lg text-sm font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <MessageSquare className="h-4 w-4" />
+            Envoyer un SMS test
+          </button>
+        </form>
+      </div>
 
     </div>
   );
