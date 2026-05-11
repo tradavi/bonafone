@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { unstable_cache, updateTag } from "next/cache";
+import { unstable_cache, revalidateTag } from "next/cache";
 import { prisma } from "./prisma";
 import { STORE } from "./utils";
 import { encryptSecret, decryptSecret } from "./encryption";
@@ -250,6 +250,11 @@ export async function upsertStoreSettings(
   }
 
   // Invalide le cache cross-request de getStoreSettings — sinon l'admin
-  // modifie l'adresse/téléphone et le front continue d'afficher l'ancien.
-  updateTag(STORE_SETTINGS_TAG);
+  // modifie l'adresse/téléphone/réseaux sociaux et le front continue d'afficher
+  // l'ancien. ⚠ revalidateTag (et non updateTag) : ce dernier appartient au
+  // nouveau système `'use cache'` directive de Next 16 et n'invalide PAS les
+  // unstable_cache. Bug observé : les social URLs sauvées mais les icônes
+  // du footer ne se mettaient pas à jour.
+  // Le 2e argument "max" force l'invalidation immediate du cache.
+  revalidateTag(STORE_SETTINGS_TAG, "max");
 }
