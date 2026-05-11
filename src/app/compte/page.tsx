@@ -15,6 +15,7 @@ const ACTIVE_REPAIR_STATUSES = [
   "ATTENTE_PIECE",
   "TERMINE",
   "PRET_RECUPERATION",
+  "ATTENTE_RESTITUTION",
 ] as const;
 
 export default async function ComptePage() {

@@ -1,6 +1,7 @@
 import "server-only";
 import { STORE } from "@/lib/utils";
 import { getStoreApiKeys } from "@/lib/store-settings";
+import { generateQuoteToken } from "@/lib/quote-token";
 
 // =====================================================
 // NOTIFICATIONS — Brevo (email) + Twilio (SMS)
@@ -376,6 +377,11 @@ export function tplRepairQuote(opts: {
 
   const subject = `Devis ${opts.number} — ${fmt(opts.totalTtc)} TTC`;
   const trackUrl = `${baseUrl()}/reparations/suivi?ref=${opts.number}`;
+  // Token signé pour les boutons "Valider" / "Refuser" — accessibles sans
+  // authentification mais protégés contre la forgerie (HMAC AUTH_SECRET).
+  const token = generateQuoteToken(opts.number);
+  const acceptUrl = `${baseUrl()}/reparations/devis-reponse?ref=${encodeURIComponent(opts.number)}&t=${token}&action=accept`;
+  const refuseUrl = `${baseUrl()}/reparations/devis-reponse?ref=${encodeURIComponent(opts.number)}&t=${token}&action=refuse`;
   const today = new Date().toLocaleDateString("fr-FR", {
     day: "numeric",
     month: "long",
@@ -497,9 +503,22 @@ export function tplRepairQuote(opts: {
       </ul>
     `)}
 
-    <!-- CTA -->
-    <p style="margin:24px 0 8px 0;color:${COLORS.foreground}">Pour <strong>valider</strong> ce devis, répondez à cet email ou rendez-vous sur le suivi de votre dossier :</p>
-    <div style="margin:18px 0 4px 0">${btn(trackUrl, "Valider mon devis")}</div>
+    <!-- CTA : 2 boutons côte à côte (table pour Outlook compat) -->
+    <p style="margin:24px 0 12px 0;color:${COLORS.foreground};font-weight:600">Que souhaitez-vous faire&nbsp;?</p>
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 4px 0">
+      <tr>
+        <td style="padding-right:10px">
+          <a href="${acceptUrl}" style="display:inline-block;background:#15803d;color:#ffffff;padding:13px 24px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;font-family:${FONT_STACK};line-height:1">✓ Valider le devis</a>
+        </td>
+        <td>
+          <a href="${refuseUrl}" style="display:inline-block;background:#ffffff;color:#dc2626;padding:12px 23px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;font-family:${FONT_STACK};line-height:1;border:1px solid #dc2626">✕ Refuser le devis</a>
+        </td>
+      </tr>
+    </table>
+    <p style="margin:14px 0 0 0;color:${COLORS.subtle};font-size:12px;line-height:1.6">
+      Une étape de confirmation vous sera proposée avant validation finale.
+      Vous pouvez aussi <a href="${trackUrl}" style="color:${COLORS.primary};text-decoration:underline">suivre votre dossier en ligne</a>.
+    </p>
   `,
     { preheader: `Devis ${opts.number} : ${fmt(opts.totalTtc)} TTC pour ${opts.device}` },
   );
@@ -765,6 +784,7 @@ const REPAIR_STATUS_LABEL: Record<string, string> = {
   ATTENTE_PIECE: "En attente de pièce",
   TERMINE: "Réparation terminée",
   PRET_RECUPERATION: "Prêt à récupérer",
+  ATTENTE_RESTITUTION: "Devis refusé — appareil à récupérer",
   RESTITUE: "Restitué",
   IRREPARABLE: "Irréparable",
 };

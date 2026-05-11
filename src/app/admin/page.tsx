@@ -29,6 +29,7 @@ const STATUS_STYLES: Record<string, string> = {
   ATTENTE_PIECE: "bg-orange-500/15 text-orange-400 border-orange-500/30",
   TERMINE: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
   PRET_RECUPERATION: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40",
+  ATTENTE_RESTITUTION: "bg-rose-500/15 text-rose-400 border-rose-500/30",
   RESTITUE: "bg-zinc-500/15 text-zinc-400 border-zinc-500/30",
   IRREPARABLE: "bg-primary/10 text-primary border-primary/30",
 };
@@ -41,6 +42,7 @@ const REPAIR_STATUS_LABEL: Record<string, string> = {
   ATTENTE_PIECE: "Attente pièce",
   TERMINE: "Terminé",
   PRET_RECUPERATION: "À récupérer",
+  ATTENTE_RESTITUTION: "Devis refusé",
   RESTITUE: "Restitué",
   IRREPARABLE: "Irréparable",
 };

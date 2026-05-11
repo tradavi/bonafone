@@ -17,6 +17,7 @@ const STATUS_FLOW = [
   { code: "ATTENTE_PIECE", label: "En attente de pièce", description: "Une pièce est commandée" },
   { code: "TERMINE", label: "Réparation terminée", description: "Prête pour restitution" },
   { code: "PRET_RECUPERATION", label: "Prêt à récupérer", description: "Vous pouvez venir le chercher" },
+  { code: "ATTENTE_RESTITUTION", label: "Devis refusé", description: "Vous avez refusé le devis — venez récupérer votre appareil non réparé" },
   { code: "RESTITUE", label: "Restitué", description: "Appareil rendu" },
 ];
 

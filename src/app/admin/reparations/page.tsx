@@ -17,6 +17,7 @@ const STATUSES = [
   { code: "ATTENTE_PIECE", label: "Attente pièce" },
   { code: "TERMINE", label: "Terminé" },
   { code: "PRET_RECUPERATION", label: "À récupérer" },
+  { code: "ATTENTE_RESTITUTION", label: "Devis refusé" },
   { code: "RESTITUE", label: "Restitué" },
   { code: "IRREPARABLE", label: "Irréparable" },
 ];

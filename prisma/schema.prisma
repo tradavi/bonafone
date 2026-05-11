@@ -203,7 +203,8 @@ model Promotion {
 // deviceType  : SMARTPHONE | TABLETTE | ORDINATEUR_PORTABLE | AUTRE
 // status      : DEMANDE_DEVIS (formulaire en ligne, appareil pas encore déposé)
 //               | RECU | DIAGNOSTIC | DEVIS_VALIDE | EN_REPARATION | ATTENTE_PIECE
-//               | TERMINE | PRET_RECUPERATION | RESTITUE | IRREPARABLE
+//               | TERMINE | PRET_RECUPERATION | ATTENTE_RESTITUTION (devis refusé)
+//               | RESTITUE | IRREPARABLE
 // contactPref : TELEPHONE | EMAIL | WHATSAPP
 // depositedAt : null = simple demande en ligne ; set = appareil physiquement reçu en boutique
 

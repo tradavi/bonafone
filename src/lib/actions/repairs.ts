@@ -16,6 +16,7 @@ const STATUSES = [
   "ATTENTE_PIECE",
   "TERMINE",
   "PRET_RECUPERATION",
+  "ATTENTE_RESTITUTION", // client a refusé le devis, attend de récupérer l'appareil non réparé
   "RESTITUE",
   "IRREPARABLE",
 ] as const;
