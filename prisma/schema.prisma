@@ -374,6 +374,25 @@ model NewsletterSubscriber {
 // PARAMÈTRES MAGASIN (singleton — id="singleton")
 // =====================================================
 
+// =====================================================
+// WEB PUSH (notifications navigateur)
+// =====================================================
+// Une ligne = un appareil/navigateur abonné. Plusieurs lignes par admin
+// possibles (poste fixe + mobile). Endpoint unique : si même device se
+// réabonne, on update au lieu d'avoir un doublon.
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String   // référence User.id (admin habituellement)
+  endpoint  String   @unique
+  p256dh    String   // clé publique ECDH du client
+  auth      String   // secret d'authentification du client
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
 model StoreSettings {
   id        String   @id @default("singleton")
   name      String?

@@ -33,6 +33,8 @@ import {
 import { isEncryptionConfigured } from "@/lib/encryption";
 import { updateStoreSettings, sendTestEmail, sendTestSms } from "@/lib/actions/settings";
 import { auth } from "@/auth";
+import { PushTestButton } from "@/components/admin/push-test-button";
+import { PushToggle } from "@/components/admin/push-toggle";
 
 export const metadata = { title: "Paramètres" };
 export const dynamic = "force-dynamic";
@@ -464,6 +466,18 @@ export default async function AdminSettingsPage({ searchParams }: Props) {
             Envoyer un SMS test
           </button>
         </form>
+
+        {/* Test Push — navigateur, indépendant de Brevo/Twilio */}
+        <div className="pt-4 mt-2 border-t border-border space-y-2">
+          <div className="text-xs text-foreground-muted">
+            Notifications navigateur (Web Push) — fonctionnent même onglet fermé,
+            sur ordinateur et mobile.
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <PushToggle compact={false} />
+            <PushTestButton />
+          </div>
+        </div>
       </div>
 
     </div>

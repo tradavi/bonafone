@@ -6,6 +6,15 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { generateNextReclamationNumber } from "@/lib/queries";
 import { sendEmail, tplReclamationReceived } from "@/lib/notifications";
+import { sendPushToAdmins } from "@/lib/push";
+
+const TYPE_LABEL: Record<string, string> = {
+  COMMANDE: "commande",
+  REPARATION: "réparation",
+  LIVRAISON: "livraison",
+  PRODUIT_DEFECTUEUX: "produit défectueux",
+  AUTRE: "autre",
+};
 
 const ReclamationSchema = z.object({
   type: z.enum(["COMMANDE", "REPARATION", "LIVRAISON", "PRODUIT_DEFECTUEUX", "AUTRE"]),
@@ -47,6 +56,13 @@ export async function createReclamation(formData: FormData) {
         subject: tpl.subject,
         html: tpl.html,
       });
+      sendPushToAdmins({
+        title: "Nouvelle réclamation",
+        body: `${data.email} — ${TYPE_LABEL[data.type] ?? data.type}`,
+        url: `/admin/reclamations`,
+        tag: `reclamation-${number}`,
+      }).catch((err) => console.error("[createReclamation] push:", err));
+
       revalidatePath("/admin/reclamations");
       target = `/reclamations?sent=${number}`;
     }

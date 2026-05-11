@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { generateNextRepairNumber } from "@/lib/queries";
 import { sendEmail, tplDevisReceived } from "@/lib/notifications";
 import { saveUploadedImage, isImageFile } from "@/lib/uploads";
+import { sendPushToAdmins } from "@/lib/push";
 
 const MAX_PHOTOS = 5;
 
@@ -112,6 +113,14 @@ export async function createDevis(formData: FormData) {
         subject: tpl.subject,
         html: tpl.html,
       });
+
+      // Push notification aux admins — non-bloquant si VAPID pas configuré.
+      sendPushToAdmins({
+        title: "Nouvelle demande de devis",
+        body: `${data.customerName} — ${data.brand} ${data.model} (${data.issueType})`,
+        url: `/admin/devis`,
+        tag: `devis-${number}`,
+      }).catch((err) => console.error("[createDevis] push:", err));
 
       revalidatePath("/admin/reparations");
       revalidatePath("/admin");

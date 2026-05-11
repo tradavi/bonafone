@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getStripe, getStripeWebhookSecret } from "@/lib/stripe";
 import { sendEmail, tplOrderConfirmation } from "@/lib/notifications";
+import { sendPushToAdmins } from "@/lib/push";
 import { formatPrice } from "@/lib/utils";
 
 export const runtime = "nodejs";
@@ -62,6 +63,12 @@ export async function POST(request: Request) {
                 html: tpl.html,
               });
             }
+            sendPushToAdmins({
+              title: "Nouvelle commande payée",
+              body: `${orderNumber} — ${formatPrice(order.total)}${customerName ? ` · ${customerName}` : ""}`,
+              url: `/admin/commandes/${orderNumber}`,
+              tag: `order-${orderNumber}`,
+            }).catch((err) => console.error("[stripe webhook] push:", err));
           }
         }
       }

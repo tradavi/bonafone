@@ -13,6 +13,7 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react";
+import { PushToggle } from "./push-toggle";
 
 const POLL_INTERVAL_MS = 30_000; // 30 secondes — bon compromis fraîcheur/charge
 const MUTE_STORAGE_KEY = "bonafone-admin-notifs-muted";
@@ -170,6 +171,7 @@ export function NotificationBell({ initial }: { initial: ApiResponse }) {
               </div>
             </div>
             <div className="flex items-center gap-1">
+              <PushToggle compact />
               <button
                 type="button"
                 onClick={toggleMute}

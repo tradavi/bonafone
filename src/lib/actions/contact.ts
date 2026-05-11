@@ -1,8 +1,10 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { sendPushToAdmins } from "@/lib/push";
 
 const ContactSchema = z.object({
   name: z.string().min(2).max(100),
@@ -36,6 +38,15 @@ export async function sendContactMessage(formData: FormData) {
         },
       });
       console.log(`📨 Message de contact de ${data.email} — ${data.subject}`);
+
+      sendPushToAdmins({
+        title: "Nouveau message contact",
+        body: `${data.name} — ${data.subject}`,
+        url: `/admin/messages`,
+        tag: `contact-${Date.now()}`,
+      }).catch((err) => console.error("[sendContactMessage] push:", err));
+
+      revalidatePath("/admin/messages");
       target = "/contact?sent=1";
     }
   } catch (err) {

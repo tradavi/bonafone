@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { getStripe } from "@/lib/stripe";
 import { generateNextOrderNumber } from "@/lib/queries";
 import { sendEmail, tplOrderConfirmation } from "@/lib/notifications";
+import { sendPushToAdmins } from "@/lib/push";
 import { formatPrice } from "@/lib/utils";
 
 // Aligné sur cart-view.tsx (front)
@@ -135,6 +136,12 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
       subject: tpl.subject,
       html: tpl.html,
     });
+    sendPushToAdmins({
+      title: "Nouvelle commande payée",
+      body: `${orderNumber} — ${formatPrice(total)} · ${shippingAddress.fullName}`,
+      url: `/admin/commandes/${orderNumber}`,
+      tag: `order-${orderNumber}`,
+    }).catch((err) => console.error("[createOrder] push:", err));
     return {
       ok: true,
       redirectUrl: `/checkout/success?ref=${orderNumber}`,
