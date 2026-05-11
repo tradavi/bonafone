@@ -137,21 +137,153 @@ export async function sendSms(input: SendSmsInput): Promise<SendSmsResult> {
 // TEMPLATES
 // =====================================================
 
-function emailLayout(content: string): string {
+// =====================================================
+// EMAIL DESIGN — palette + helpers réutilisables
+// =====================================================
+// Conventions :
+// - Tables imbriquées pour max compat (Outlook, Gmail, mobile, etc.)
+// - Couleurs hardcoded (les variables CSS ne marchent pas en HTML email)
+// - Police système (système prioritaire, Arial fallback)
+// - max-width 600px + width 100% pour responsive
+// - Logo : carré rouge avec "b" en CSS pur (pas d'image hostée)
+
+const COLORS = {
+  bg: "#0a0a0a",
+  surface: "#131316",
+  surface2: "#1c1c21",
+  border: "#2a2a31",
+  primary: "#ff2d3a",
+  primaryDark: "#c4111e",
+  foreground: "#f5f5f7",
+  muted: "#a1a1aa",
+  subtle: "#71717a",
+  success: "#10b981",
+  warning: "#f59e0b",
+};
+
+const FONT_STACK =
+  "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+const MONO_STACK = "ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace";
+
+/** Bouton CTA principal — fond rouge, blanc, padding généreux */
+function btn(href: string, label: string): string {
+  return `<a href="${href}" style="display:inline-block;background:${COLORS.primary};color:#ffffff;padding:13px 26px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;font-family:${FONT_STACK};line-height:1">${escapeHtml(label)}</a>`;
+}
+
+/** Référence dossier — badge mono rouge */
+function ref(number: string): string {
+  return `<span style="display:inline-block;background:rgba(255,45,58,0.12);color:${COLORS.primary};font-family:${MONO_STACK};font-size:13px;font-weight:700;padding:3px 9px;border-radius:5px;border:1px solid rgba(255,45,58,0.3);letter-spacing:0.5px">${escapeHtml(number)}</span>`;
+}
+
+/** Encart d'info — neutre, success ou warning */
+function infoBox(content: string, variant: "neutral" | "success" | "warning" = "neutral"): string {
+  const v = {
+    neutral: { bg: COLORS.surface2, border: COLORS.border },
+    success: { bg: "rgba(16,185,129,0.08)", border: "rgba(16,185,129,0.35)" },
+    warning: { bg: "rgba(245,158,11,0.08)", border: "rgba(245,158,11,0.35)" },
+  }[variant];
+  return `<div style="background:${v.bg};border:1px solid ${v.border};border-radius:10px;padding:16px 18px;margin:16px 0">${content}</div>`;
+}
+
+/** Petit titre de section dans le contenu */
+function sectionTitle(text: string): string {
+  return `<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:${COLORS.muted};margin:24px 0 10px 0;font-family:${FONT_STACK}">${escapeHtml(text)}</div>`;
+}
+
+/** Logo SVG (carré rouge avec b stylisé + ondes) en data URI, replié pour email */
+function logoBlock(): string {
+  // Construit avec une table HTML pure pour compat max (les SVG sont bloqués
+  // par Gmail/Outlook). Carré arrondi rouge + "b" blanc à côté du wordmark.
+  return `
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+      <tr>
+        <td style="vertical-align:middle">
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="40" height="40" style="background:${COLORS.primary};border-radius:9px">
+            <tr>
+              <td align="center" valign="middle" height="40" style="height:40px;font-family:'Arial Black',Arial,sans-serif;color:#ffffff;font-size:26px;font-weight:900;line-height:40px">b</td>
+            </tr>
+          </table>
+        </td>
+        <td style="padding-left:14px;vertical-align:middle">
+          <div style="font-size:22px;font-weight:900;color:${COLORS.primary};letter-spacing:-0.5px;line-height:1;font-family:${FONT_STACK}">BONAFONE</div>
+          <div style="font-size:9px;color:${COLORS.muted};letter-spacing:1.8px;text-transform:uppercase;margin-top:5px;font-family:${FONT_STACK};font-weight:600">${escapeHtml(STORE.tagline)}</div>
+        </td>
+      </tr>
+    </table>`;
+}
+
+/** Footer email avec coordonnées + petit copyright */
+function footerBlock(): string {
+  const year = new Date().getFullYear();
+  return `
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+      <tr>
+        <td style="font-size:12px;color:${COLORS.muted};line-height:1.7;font-family:${FONT_STACK}">
+          <div style="color:${COLORS.foreground};font-weight:700;font-size:13px;margin-bottom:4px">${escapeHtml(STORE.name)}</div>
+          <div style="color:${COLORS.subtle}">${escapeHtml(STORE.address)}</div>
+          <div style="margin-top:4px">
+            <a href="tel:${STORE.phone.replace(/\s/g, "")}" style="color:${COLORS.muted};text-decoration:none">${escapeHtml(STORE.phone)}</a>
+            <span style="color:${COLORS.subtle};margin:0 6px">·</span>
+            <a href="mailto:${STORE.email}" style="color:${COLORS.muted};text-decoration:none">${escapeHtml(STORE.email)}</a>
+          </div>
+          <div style="color:${COLORS.subtle};margin-top:4px">${escapeHtml(STORE.hours)}</div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding-top:14px;border-top:1px solid ${COLORS.border};margin-top:14px;font-size:10px;color:${COLORS.subtle};font-family:${FONT_STACK}">
+          © ${year} ${escapeHtml(STORE.name)} · <a href="${baseUrl()}" style="color:${COLORS.subtle};text-decoration:underline">bonafone.com</a>
+        </td>
+      </tr>
+    </table>`;
+}
+
+function emailLayout(content: string, opts?: { preheader?: string }): string {
+  // Le preheader = texte de prévisualisation affiché par les clients mail
+  // avant le contenu réel. Caché visuellement mais lu par les screen-readers.
+  const preheader = opts?.preheader
+    ? `<div style="display:none;max-height:0;overflow:hidden;mso-hide:all">${escapeHtml(opts.preheader)}</div>`
+    : "";
+
   return `<!doctype html>
 <html lang="fr">
-<head><meta charset="utf-8"><title>${STORE.name}</title></head>
-<body style="margin:0;background:#0a0a0a;color:#e5e5e5;font-family:-apple-system,Segoe UI,Roboto,sans-serif;padding:24px">
-  <div style="max-width:560px;margin:0 auto;background:#141414;border:1px solid #262626;border-radius:16px;padding:28px">
-    <div style="font-size:20px;font-weight:800;letter-spacing:-0.5px;margin-bottom:6px">${STORE.name}</div>
-    <div style="color:#a3a3a3;font-size:13px;margin-bottom:20px">${STORE.tagline}</div>
-    <div style="font-size:14px;line-height:1.6">${content}</div>
-    <div style="border-top:1px solid #262626;margin-top:24px;padding-top:16px;color:#737373;font-size:12px">
-      ${STORE.address}<br>
-      ${STORE.phone} · <a style="color:#a3a3a3" href="mailto:${STORE.email}">${STORE.email}</a>
-    </div>
-  </div>
-</body></html>`;
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="x-apple-disable-message-reformatting">
+  <meta name="color-scheme" content="dark">
+  <meta name="supported-color-schemes" content="dark light">
+  <title>${escapeHtml(STORE.name)}</title>
+</head>
+<body style="margin:0;padding:0;background:${COLORS.bg};color:${COLORS.foreground};font-family:${FONT_STACK}">
+  ${preheader}
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:${COLORS.bg};min-height:100vh">
+    <tr>
+      <td align="center" style="padding:32px 12px">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="max-width:600px;width:100%;background:${COLORS.surface};border:1px solid ${COLORS.border};border-radius:16px;overflow:hidden">
+          <!-- HEADER -->
+          <tr>
+            <td style="padding:24px 32px;border-bottom:1px solid ${COLORS.border};background:linear-gradient(180deg,rgba(255,45,58,0.04) 0%,transparent 100%)">
+              ${logoBlock()}
+            </td>
+          </tr>
+          <!-- CONTENT -->
+          <tr>
+            <td style="padding:32px;font-size:15px;line-height:1.65;color:${COLORS.foreground};font-family:${FONT_STACK}">
+              ${content}
+            </td>
+          </tr>
+          <!-- FOOTER -->
+          <tr>
+            <td style="padding:24px 32px;background:${COLORS.bg};border-top:1px solid ${COLORS.border}">
+              ${footerBlock()}
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
 }
 
 export function tplDevisReceived(opts: {
@@ -162,13 +294,29 @@ export function tplDevisReceived(opts: {
 }) {
   const subject = `Votre demande de devis ${opts.number}`;
   const trackUrl = `${baseUrl()}/reparations/suivi?ref=${opts.number}`;
-  const html = emailLayout(`
-    <p>Bonjour ${escapeHtml(opts.customerName.split(" ")[0])},</p>
-    <p>Nous avons bien reçu votre demande de devis pour <strong>${escapeHtml(opts.device)}</strong> (${escapeHtml(opts.issueType)}).</p>
-    <p>Numéro de dossier : <strong style="color:#ef4444;font-family:ui-monospace,Menlo,monospace">${opts.number}</strong></p>
-    <p>Notre équipe revient vers vous sous 24h ouvrées.</p>
-    <p><a href="${trackUrl}" style="display:inline-block;background:#ef4444;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:600">Suivre ma réparation</a></p>
-  `);
+  const firstName = opts.customerName.split(" ")[0] || opts.customerName;
+  const html = emailLayout(
+    `
+    <h1 style="font-size:22px;font-weight:800;margin:0 0 8px 0;color:${COLORS.foreground};letter-spacing:-0.3px">Demande de devis reçue</h1>
+    <p style="margin:0 0 20px 0;color:${COLORS.muted};font-size:14px">Bonjour ${escapeHtml(firstName)}, nous traitons votre demande.</p>
+
+    <p style="margin:0 0 8px 0">Nous avons bien reçu votre demande de devis pour&nbsp;:</p>
+    ${infoBox(`
+      <div style="font-size:13px;color:${COLORS.muted};margin-bottom:4px">Appareil</div>
+      <div style="font-size:16px;font-weight:700;color:${COLORS.foreground};margin-bottom:10px">${escapeHtml(opts.device)}</div>
+      <div style="font-size:13px;color:${COLORS.muted};margin-bottom:4px">Type d'intervention</div>
+      <div style="font-size:14px;color:${COLORS.foreground}">${escapeHtml(opts.issueType)}</div>
+    `)}
+
+    ${sectionTitle("Numéro de dossier")}
+    <div style="margin:0 0 16px 0">${ref(opts.number)}</div>
+
+    <p style="margin:20px 0">Notre équipe revient vers vous sous <strong>24 h ouvrées</strong> avec une proposition détaillée et un devis chiffré.</p>
+
+    <div style="margin:28px 0 8px 0">${btn(trackUrl, "Suivre mon dossier")}</div>
+  `,
+    { preheader: `Devis ${opts.number} — ${opts.device}` },
+  );
   return { subject, html };
 }
 
@@ -193,50 +341,87 @@ export function tplRepairQuote(opts: {
 
   const subject = `Devis ${opts.number} — ${fmt(opts.totalTtc)} TTC`;
   const trackUrl = `${baseUrl()}/reparations/suivi?ref=${opts.number}`;
+  const firstName = opts.customerName.split(" ")[0] || opts.customerName;
+
   const partsHtml = opts.parts.length
-    ? `<table style="width:100%;border-collapse:collapse;margin:12px 0;font-size:13px">
-        <thead><tr style="text-align:left;color:#a3a3a3;font-size:11px;text-transform:uppercase;letter-spacing:0.05em">
-          <th style="padding:6px 0;border-bottom:1px solid #262626">Pièce</th>
-          <th style="padding:6px 0;border-bottom:1px solid #262626;text-align:right">HT</th>
-          <th style="padding:6px 0;border-bottom:1px solid #262626;text-align:right">TTC</th>
-        </tr></thead>
+    ? `
+      ${sectionTitle("Détail des pièces & main d'œuvre")}
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;margin:0 0 8px 0;font-family:${FONT_STACK}">
+        <thead>
+          <tr>
+            <th align="left" style="padding:10px 12px;border-bottom:1px solid ${COLORS.border};font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:${COLORS.muted}">Désignation</th>
+            <th align="right" style="padding:10px 12px;border-bottom:1px solid ${COLORS.border};font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:${COLORS.muted}">HT</th>
+            <th align="right" style="padding:10px 12px;border-bottom:1px solid ${COLORS.border};font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:${COLORS.muted}">TTC</th>
+          </tr>
+        </thead>
         <tbody>
-        ${opts.parts
-          .map((p) => {
-            const b = breakdown(p.costTtc);
-            return `<tr>
-              <td style="padding:6px 0;border-bottom:1px solid #1f1f1f">${escapeHtml(p.name)}</td>
-              <td style="padding:6px 0;border-bottom:1px solid #1f1f1f;text-align:right;color:#a3a3a3">${fmt(b.ht)}</td>
-              <td style="padding:6px 0;border-bottom:1px solid #1f1f1f;text-align:right">${fmt(b.ttc)}</td>
-            </tr>`;
-          })
-          .join("")}
+          ${opts.parts
+            .map((p) => {
+              const b = breakdown(p.costTtc);
+              return `<tr>
+                <td style="padding:11px 12px;border-bottom:1px solid ${COLORS.border};font-size:14px;color:${COLORS.foreground}">${escapeHtml(p.name)}</td>
+                <td align="right" style="padding:11px 12px;border-bottom:1px solid ${COLORS.border};font-size:13px;color:${COLORS.muted};font-family:${MONO_STACK}">${fmt(b.ht)}</td>
+                <td align="right" style="padding:11px 12px;border-bottom:1px solid ${COLORS.border};font-size:14px;color:${COLORS.foreground};font-family:${MONO_STACK};font-weight:600">${fmt(b.ttc)}</td>
+              </tr>`;
+            })
+            .join("")}
         </tbody>
-       </table>`
+      </table>`
     : "";
-  const html = emailLayout(`
-    <p>Bonjour ${escapeHtml(opts.customerName.split(" ")[0])},</p>
-    <p>Voici notre proposition de devis pour la réparation de votre <strong>${escapeHtml(opts.device)}</strong> (${escapeHtml(opts.issueType)}).</p>
-    <p>Numéro de dossier : <strong style="color:#ef4444;font-family:ui-monospace,Menlo,monospace">${opts.number}</strong></p>
+
+  const totalsTable = `
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;margin:20px 0 8px 0;background:${COLORS.surface2};border:1px solid ${COLORS.border};border-radius:10px;overflow:hidden;font-family:${FONT_STACK}">
+      <tr>
+        <td style="padding:12px 18px;font-size:13px;color:${COLORS.muted}">Sous-total HT</td>
+        <td align="right" style="padding:12px 18px;font-size:14px;color:${COLORS.foreground};font-family:${MONO_STACK}">${fmt(totals.ht)}</td>
+      </tr>
+      <tr>
+        <td style="padding:12px 18px;border-top:1px solid ${COLORS.border};font-size:13px;color:${COLORS.muted}">TVA 21 %</td>
+        <td align="right" style="padding:12px 18px;border-top:1px solid ${COLORS.border};font-size:14px;color:${COLORS.foreground};font-family:${MONO_STACK}">${fmt(totals.vat)}</td>
+      </tr>
+      <tr>
+        <td style="padding:16px 18px;border-top:1px solid ${COLORS.border};background:rgba(255,45,58,0.06);font-size:15px;font-weight:700;color:${COLORS.foreground}">Total TTC</td>
+        <td align="right" style="padding:16px 18px;border-top:1px solid ${COLORS.border};background:rgba(255,45,58,0.06);font-size:22px;font-weight:800;color:${COLORS.primary};font-family:${MONO_STACK};letter-spacing:-0.5px">${fmt(totals.ttc)}</td>
+      </tr>
+    </table>`;
+
+  const html = emailLayout(
+    `
+    <h1 style="font-size:22px;font-weight:800;margin:0 0 8px 0;color:${COLORS.foreground};letter-spacing:-0.3px">Votre devis de réparation</h1>
+    <p style="margin:0 0 20px 0;color:${COLORS.muted};font-size:14px">Bonjour ${escapeHtml(firstName)}, voici notre proposition.</p>
+
+    ${infoBox(`
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+        <tr>
+          <td style="vertical-align:top;width:50%">
+            <div style="font-size:11px;color:${COLORS.muted};text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:5px">Appareil</div>
+            <div style="font-size:15px;font-weight:700;color:${COLORS.foreground}">${escapeHtml(opts.device)}</div>
+          </td>
+          <td style="vertical-align:top;width:50%;padding-left:16px">
+            <div style="font-size:11px;color:${COLORS.muted};text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:5px">Intervention</div>
+            <div style="font-size:14px;color:${COLORS.foreground}">${escapeHtml(opts.issueType)}</div>
+          </td>
+        </tr>
+      </table>
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid ${COLORS.border}">
+        <div style="font-size:11px;color:${COLORS.muted};text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:6px">Référence dossier</div>
+        ${ref(opts.number)}
+      </div>
+    `)}
+
     ${partsHtml}
-    <table style="width:100%;border-collapse:collapse;margin:16px 0;background:#1f1f1f;border:1px solid #262626;border-radius:10px;overflow:hidden">
-      <tr style="font-size:13px;color:#a3a3a3">
-        <td style="padding:10px 16px">Sous-total HT</td>
-        <td style="padding:10px 16px;text-align:right;font-family:ui-monospace,Menlo,monospace">${fmt(totals.ht)}</td>
-      </tr>
-      <tr style="font-size:13px;color:#a3a3a3;border-top:1px solid #262626">
-        <td style="padding:10px 16px">TVA 21 %</td>
-        <td style="padding:10px 16px;text-align:right;font-family:ui-monospace,Menlo,monospace">${fmt(totals.vat)}</td>
-      </tr>
-      <tr style="border-top:1px solid #262626">
-        <td style="padding:12px 16px;font-weight:700">Total TTC</td>
-        <td style="padding:12px 16px;text-align:right;font-size:20px;font-weight:700;color:#ef4444;font-family:ui-monospace,Menlo,monospace">${fmt(totals.ttc)}</td>
-      </tr>
-    </table>
-    ${opts.message ? `<p style="color:#a3a3a3;white-space:pre-line">${escapeHtml(opts.message)}</p>` : ""}
-    <p>Pour valider ce devis, répondez à cet email ou rendez-vous sur le suivi de votre dossier.</p>
-    <p><a href="${trackUrl}" style="display:inline-block;background:#ef4444;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:600">Suivre mon dossier</a></p>
-  `);
+    ${totalsTable}
+
+    ${opts.message ? infoBox(`<div style="font-size:13px;color:${COLORS.muted};text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:8px">Message du technicien</div><div style="white-space:pre-line;color:${COLORS.foreground};font-size:14px;line-height:1.6">${escapeHtml(opts.message)}</div>`) : ""}
+
+    <p style="margin:24px 0 8px 0">Pour <strong>valider</strong> ce devis, répondez à cet email ou cliquez sur le bouton ci-dessous depuis votre espace de suivi.</p>
+
+    <div style="margin:24px 0 8px 0">${btn(trackUrl, "Valider mon devis")}</div>
+
+    <p style="margin:20px 0 0 0;color:${COLORS.subtle};font-size:12px">Devis valable 30 jours. Diagnostic gratuit en cas de refus.</p>
+  `,
+    { preheader: `Devis ${opts.number} : ${fmt(opts.totalTtc)} TTC pour ${opts.device}` },
+  );
   return { subject, html };
 }
 
@@ -247,13 +432,33 @@ export function tplOrderConfirmation(opts: {
 }) {
   const subject = `Confirmation de commande ${opts.number}`;
   const ordersUrl = `${baseUrl()}/compte/commandes`;
-  const html = emailLayout(`
-    <p>Bonjour ${escapeHtml(opts.customerName?.split(" ")[0] ?? "")},</p>
-    <p>Merci pour votre commande ! Nous préparons votre colis.</p>
-    <p>Numéro de commande : <strong style="color:#ef4444;font-family:ui-monospace,Menlo,monospace">${opts.number}</strong><br>
-    Montant : <strong>${escapeHtml(opts.total)}</strong></p>
-    <p><a href="${ordersUrl}" style="display:inline-block;background:#ef4444;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:600">Mes commandes</a></p>
-  `);
+  const firstName = opts.customerName?.split(" ")[0] ?? "";
+  const html = emailLayout(
+    `
+    <h1 style="font-size:22px;font-weight:800;margin:0 0 8px 0;color:${COLORS.foreground};letter-spacing:-0.3px">Commande confirmée</h1>
+    <p style="margin:0 0 20px 0;color:${COLORS.muted};font-size:14px">${firstName ? `Bonjour ${escapeHtml(firstName)}, ` : ""}merci pour votre confiance !</p>
+
+    ${infoBox(`
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+        <tr>
+          <td style="vertical-align:top">
+            <div style="font-size:11px;color:${COLORS.muted};text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:6px">N° de commande</div>
+            ${ref(opts.number)}
+          </td>
+          <td align="right" style="vertical-align:top">
+            <div style="font-size:11px;color:${COLORS.muted};text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:6px">Montant</div>
+            <div style="font-size:18px;font-weight:800;color:${COLORS.primary};font-family:${MONO_STACK}">${escapeHtml(opts.total)}</div>
+          </td>
+        </tr>
+      </table>
+    `, "success")}
+
+    <p style="margin:20px 0">Nous préparons votre colis. Vous recevrez un email dès qu'il sera expédié, avec votre numéro de suivi.</p>
+
+    <div style="margin:28px 0 8px 0">${btn(ordersUrl, "Voir mes commandes")}</div>
+  `,
+    { preheader: `Commande ${opts.number} — ${opts.total}` },
+  );
   return { subject, html };
 }
 
@@ -266,24 +471,53 @@ export function tplRepairStatus(opts: {
   const label = REPAIR_STATUS_LABEL[opts.status] ?? opts.status.replace(/_/g, " ");
   const subject = `${opts.number} — ${label}`;
   const trackUrl = `${baseUrl()}/reparations/suivi?ref=${opts.number}`;
-  const html = emailLayout(`
-    <p>Bonjour ${escapeHtml(opts.customerName.split(" ")[0])},</p>
-    <p>Le statut de votre dossier <strong style="color:#ef4444;font-family:ui-monospace,Menlo,monospace">${opts.number}</strong> a évolué :</p>
-    <p style="font-size:18px;font-weight:700">${escapeHtml(label)}</p>
-    ${opts.comment ? `<p style="color:#a3a3a3">${escapeHtml(opts.comment)}</p>` : ""}
-    <p><a href="${trackUrl}" style="display:inline-block;background:#ef4444;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:600">Suivre ma réparation</a></p>
-  `);
+  const firstName = opts.customerName.split(" ")[0] || opts.customerName;
+  // PRET_RECUPERATION et TERMINE = bonne nouvelle → variant success
+  const variant: "neutral" | "success" =
+    opts.status === "PRET_RECUPERATION" || opts.status === "TERMINE" || opts.status === "RESTITUE"
+      ? "success"
+      : "neutral";
+  const html = emailLayout(
+    `
+    <h1 style="font-size:22px;font-weight:800;margin:0 0 8px 0;color:${COLORS.foreground};letter-spacing:-0.3px">Mise à jour de votre réparation</h1>
+    <p style="margin:0 0 20px 0;color:${COLORS.muted};font-size:14px">Bonjour ${escapeHtml(firstName)}, votre dossier ${ref(opts.number)} évolue.</p>
+
+    ${infoBox(`
+      <div style="font-size:11px;color:${COLORS.muted};text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:8px">Nouveau statut</div>
+      <div style="font-size:20px;font-weight:800;color:${variant === "success" ? COLORS.success : COLORS.foreground};letter-spacing:-0.3px">${escapeHtml(label)}</div>
+      ${opts.comment ? `<div style="margin-top:12px;padding-top:12px;border-top:1px solid ${COLORS.border};color:${COLORS.muted};font-size:14px;line-height:1.6;white-space:pre-line">${escapeHtml(opts.comment)}</div>` : ""}
+    `, variant)}
+
+    <div style="margin:28px 0 8px 0">${btn(trackUrl, "Suivre mon dossier")}</div>
+  `,
+    { preheader: `${opts.number} : ${label}` },
+  );
   const sms = `${STORE.name} — ${opts.number} : ${label}${opts.comment ? `. ${opts.comment}` : ""}. Suivi : ${trackUrl}`;
   return { subject, html, sms };
 }
 
 export function tplWelcome(opts: { firstName: string }) {
   const subject = `Bienvenue chez ${STORE.name} !`;
-  const html = emailLayout(`
-    <p>Bonjour ${escapeHtml(opts.firstName)},</p>
-    <p>Merci pour votre inscription. Vous pouvez désormais suivre vos commandes et réparations depuis votre espace client.</p>
-    <p><a href="${baseUrl()}/compte" style="display:inline-block;background:#ef4444;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:600">Mon espace client</a></p>
-  `);
+  const html = emailLayout(
+    `
+    <h1 style="font-size:24px;font-weight:800;margin:0 0 8px 0;color:${COLORS.foreground};letter-spacing:-0.3px">Bienvenue, ${escapeHtml(opts.firstName)} 👋</h1>
+    <p style="margin:0 0 20px 0;color:${COLORS.muted};font-size:14px">Votre espace client ${escapeHtml(STORE.name)} est prêt.</p>
+
+    <p style="margin:0 0 16px 0">Merci pour votre inscription ! Depuis votre espace client, vous pouvez désormais&nbsp;:</p>
+
+    ${infoBox(`
+      <div style="color:${COLORS.foreground};font-size:14px;line-height:1.9">
+        <div>→ Suivre l'avancement de vos <strong>réparations</strong></div>
+        <div>→ Consulter vos <strong>devis</strong> et les valider</div>
+        <div>→ Retrouver l'historique de vos <strong>commandes</strong></div>
+        <div>→ Laisser un <strong>avis</strong> après une intervention</div>
+      </div>
+    `)}
+
+    <div style="margin:28px 0 8px 0">${btn(`${baseUrl()}/compte`, "Accéder à mon espace")}</div>
+  `,
+    { preheader: `Votre espace client ${STORE.name} est prêt.` },
+  );
   return { subject, html };
 }
 
@@ -300,29 +534,33 @@ export function tplAccountCreatedByAdmin(opts: {
 }) {
   const subject = `Bienvenue chez ${STORE.name} — accès à votre espace client`;
   const repairLine = opts.repairNumber
-    ? `<p>Votre dossier de réparation <strong style="color:#ef4444;font-family:ui-monospace,Menlo,monospace">${opts.repairNumber}</strong> est désormais accessible depuis votre espace.</p>`
+    ? `<p style="margin:0 0 16px 0">Votre dossier de réparation ${ref(opts.repairNumber)} est désormais accessible depuis votre espace.</p>`
     : "";
-  const html = emailLayout(`
-    <p>Bonjour ${escapeHtml(opts.firstName)},</p>
-    <p>Un espace client a été créé pour vous chez <strong>${STORE.name}</strong>.</p>
+  const html = emailLayout(
+    `
+    <h1 style="font-size:22px;font-weight:800;margin:0 0 8px 0;color:${COLORS.foreground};letter-spacing:-0.3px">Votre espace client est prêt</h1>
+    <p style="margin:0 0 20px 0;color:${COLORS.muted};font-size:14px">Bonjour ${escapeHtml(opts.firstName)}, un compte a été créé pour vous chez ${escapeHtml(STORE.name)}.</p>
+
     ${repairLine}
-    <p>Vos identifiants de connexion :</p>
-    <table style="width:100%;border-collapse:collapse;margin:16px 0;background:#f9fafb;border-radius:8px;overflow:hidden">
+
+    ${sectionTitle("Vos identifiants de connexion")}
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;margin:8px 0 16px 0;background:${COLORS.surface2};border:1px solid ${COLORS.border};border-radius:10px;overflow:hidden;font-family:${FONT_STACK}">
       <tr>
-        <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;font-size:13px;color:#6b7280">Email</td>
-        <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;font-family:ui-monospace,Menlo,monospace;font-size:14px;font-weight:600">${escapeHtml(opts.email)}</td>
+        <td style="padding:14px 16px;border-bottom:1px solid ${COLORS.border};font-size:12px;color:${COLORS.muted};text-transform:uppercase;letter-spacing:1.5px;font-weight:700;width:40%">Email</td>
+        <td style="padding:14px 16px;border-bottom:1px solid ${COLORS.border};font-family:${MONO_STACK};font-size:14px;font-weight:600;color:${COLORS.foreground}">${escapeHtml(opts.email)}</td>
       </tr>
       <tr>
-        <td style="padding:10px 14px;font-size:13px;color:#6b7280">Mot de passe temporaire</td>
-        <td style="padding:10px 14px;font-family:ui-monospace,Menlo,monospace;font-size:14px;font-weight:600;color:#ef4444">${escapeHtml(opts.temporaryPassword)}</td>
+        <td style="padding:14px 16px;font-size:12px;color:${COLORS.muted};text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Mot de passe</td>
+        <td style="padding:14px 16px;font-family:${MONO_STACK};font-size:16px;font-weight:700;color:${COLORS.primary};letter-spacing:0.5px">${escapeHtml(opts.temporaryPassword)}</td>
       </tr>
     </table>
-    <p><a href="${baseUrl()}/connexion" style="display:inline-block;background:#ef4444;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:600">Se connecter</a></p>
-    <p style="color:#6b7280;font-size:13px;margin-top:24px">
-      Pour votre sécurité, changez ce mot de passe dès votre première connexion depuis l'onglet
-      <strong>Mon profil</strong>.
-    </p>
-  `);
+
+    <div style="margin:24px 0 8px 0">${btn(`${baseUrl()}/connexion`, "Se connecter")}</div>
+
+    ${infoBox(`<div style="color:${COLORS.foreground};font-size:13px;line-height:1.6"><strong>⚠ Important :</strong> pour votre sécurité, changez ce mot de passe dès votre première connexion depuis <strong>Mon profil</strong>.</div>`, "warning")}
+  `,
+    { preheader: `Vos identifiants ${STORE.name} sont à l'intérieur.` },
+  );
   return { subject, html };
 }
 
@@ -336,35 +574,50 @@ export function tplPasswordReset(opts: {
   temporaryPassword: string;
 }) {
   const subject = `${STORE.name} — votre nouveau mot de passe`;
-  const html = emailLayout(`
-    <p>Bonjour ${escapeHtml(opts.firstName)},</p>
-    <p>Votre mot de passe a été réinitialisé par notre équipe. Voici vos nouveaux identifiants :</p>
-    <table style="width:100%;border-collapse:collapse;margin:16px 0;background:#f9fafb;border-radius:8px;overflow:hidden">
+  const html = emailLayout(
+    `
+    <h1 style="font-size:22px;font-weight:800;margin:0 0 8px 0;color:${COLORS.foreground};letter-spacing:-0.3px">Mot de passe réinitialisé</h1>
+    <p style="margin:0 0 20px 0;color:${COLORS.muted};font-size:14px">Bonjour ${escapeHtml(opts.firstName)}, votre nouveau mot de passe est prêt.</p>
+
+    <p style="margin:0 0 8px 0">Notre équipe a réinitialisé l'accès à votre compte. Voici vos nouveaux identifiants&nbsp;:</p>
+
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;margin:16px 0;background:${COLORS.surface2};border:1px solid ${COLORS.border};border-radius:10px;overflow:hidden;font-family:${FONT_STACK}">
       <tr>
-        <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;font-size:13px;color:#6b7280">Email</td>
-        <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;font-family:ui-monospace,Menlo,monospace;font-size:14px;font-weight:600">${escapeHtml(opts.email)}</td>
+        <td style="padding:14px 16px;border-bottom:1px solid ${COLORS.border};font-size:12px;color:${COLORS.muted};text-transform:uppercase;letter-spacing:1.5px;font-weight:700;width:40%">Email</td>
+        <td style="padding:14px 16px;border-bottom:1px solid ${COLORS.border};font-family:${MONO_STACK};font-size:14px;font-weight:600;color:${COLORS.foreground}">${escapeHtml(opts.email)}</td>
       </tr>
       <tr>
-        <td style="padding:10px 14px;font-size:13px;color:#6b7280">Nouveau mot de passe</td>
-        <td style="padding:10px 14px;font-family:ui-monospace,Menlo,monospace;font-size:14px;font-weight:600;color:#ef4444">${escapeHtml(opts.temporaryPassword)}</td>
+        <td style="padding:14px 16px;font-size:12px;color:${COLORS.muted};text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Nouveau mot de passe</td>
+        <td style="padding:14px 16px;font-family:${MONO_STACK};font-size:16px;font-weight:700;color:${COLORS.primary};letter-spacing:0.5px">${escapeHtml(opts.temporaryPassword)}</td>
       </tr>
     </table>
-    <p><a href="${baseUrl()}/connexion" style="display:inline-block;background:#ef4444;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:600">Se connecter</a></p>
-    <p style="color:#6b7280;font-size:13px;margin-top:24px">
-      Pour votre sécurité, changez ce mot de passe dès votre prochaine connexion depuis
-      <strong>Mon profil</strong>. Si vous n'êtes pas à l'origine de cette demande,
-      contactez-nous immédiatement.
-    </p>
-  `);
+
+    <div style="margin:24px 0 8px 0">${btn(`${baseUrl()}/connexion`, "Se connecter")}</div>
+
+    ${infoBox(`<div style="color:${COLORS.foreground};font-size:13px;line-height:1.6"><strong>⚠ Important :</strong> changez ce mot de passe dès votre prochaine connexion depuis <strong>Mon profil</strong>. Si vous n'êtes pas à l'origine de cette demande, contactez-nous immédiatement.</div>`, "warning")}
+  `,
+    { preheader: `Votre nouveau mot de passe ${STORE.name}.` },
+  );
   return { subject, html };
 }
 
 export function tplReclamationReceived(opts: { number: string }) {
   const subject = `Votre réclamation ${opts.number} a bien été reçue`;
-  const html = emailLayout(`
-    <p>Bonjour,</p>
-    <p>Nous avons bien reçu votre réclamation <strong style="color:#ef4444;font-family:ui-monospace,Menlo,monospace">${opts.number}</strong>. Notre équipe vous répondra dans les plus brefs délais.</p>
-  `);
+  const html = emailLayout(
+    `
+    <h1 style="font-size:22px;font-weight:800;margin:0 0 8px 0;color:${COLORS.foreground};letter-spacing:-0.3px">Réclamation enregistrée</h1>
+    <p style="margin:0 0 20px 0;color:${COLORS.muted};font-size:14px">Bonjour, votre demande nous est bien parvenue.</p>
+
+    ${infoBox(`
+      <div style="font-size:11px;color:${COLORS.muted};text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:6px">Référence dossier</div>
+      ${ref(opts.number)}
+    `)}
+
+    <p style="margin:20px 0">Nous avons bien reçu votre réclamation. Notre équipe l'examine et reviendra vers vous dans les plus brefs délais.</p>
+    <p style="margin:0;color:${COLORS.muted};font-size:13px">Vous pouvez répondre à cet email à tout moment pour ajouter des informations à votre dossier.</p>
+  `,
+    { preheader: `Réclamation ${opts.number} prise en compte.` },
+  );
   return { subject, html };
 }
 
@@ -374,12 +627,21 @@ export function tplContactReply(opts: {
   message: string;
 }) {
   const subject = `Re: ${opts.subject}`;
-  const html = emailLayout(`
-    <p>Bonjour ${escapeHtml(opts.customerName.split(" ")[0] || opts.customerName)},</p>
-    <p>Merci pour votre message. Voici notre réponse :</p>
-    <div style="background:#1f1f1f;border:1px solid #262626;border-radius:10px;padding:14px 18px;margin:16px 0;white-space:pre-line">${escapeHtml(opts.message)}</div>
-    <p style="color:#a3a3a3;font-size:13px">Pour toute précision, n'hésitez pas à répondre à cet email.</p>
-  `);
+  const firstName = opts.customerName.split(" ")[0] || opts.customerName;
+  const html = emailLayout(
+    `
+    <h1 style="font-size:22px;font-weight:800;margin:0 0 8px 0;color:${COLORS.foreground};letter-spacing:-0.3px">Notre réponse à votre message</h1>
+    <p style="margin:0 0 20px 0;color:${COLORS.muted};font-size:14px">Bonjour ${escapeHtml(firstName)}, merci d'avoir pris contact avec nous.</p>
+
+    ${sectionTitle("Concernant votre demande")}
+    <p style="margin:0 0 16px 0;color:${COLORS.foreground};font-size:14px;font-weight:600">${escapeHtml(opts.subject)}</p>
+
+    ${infoBox(`<div style="white-space:pre-line;color:${COLORS.foreground};font-size:14px;line-height:1.7">${escapeHtml(opts.message)}</div>`)}
+
+    <p style="margin:20px 0 0 0;color:${COLORS.muted};font-size:13px">Pour toute précision complémentaire, n'hésitez pas à répondre directement à cet email.</p>
+  `,
+    { preheader: `Notre réponse à : ${opts.subject}` },
+  );
   return { subject, html };
 }
 
@@ -389,12 +651,23 @@ export function tplReclamationReply(opts: {
 }) {
   const subject = `Réponse à votre réclamation ${opts.number}`;
   // Le message admin est inséré tel quel (whitespace préservé via white-space:pre-line)
-  const html = emailLayout(`
-    <p>Bonjour,</p>
-    <p>Concernant votre réclamation <strong style="color:#ef4444;font-family:ui-monospace,Menlo,monospace">${opts.number}</strong>, voici notre réponse :</p>
-    <div style="background:#1f1f1f;border:1px solid #262626;border-radius:10px;padding:14px 18px;margin:16px 0;white-space:pre-line">${escapeHtml(opts.message)}</div>
-    <p style="color:#a3a3a3;font-size:13px">Pour toute précision, n'hésitez pas à répondre à cet email.</p>
-  `);
+  const html = emailLayout(
+    `
+    <h1 style="font-size:22px;font-weight:800;margin:0 0 8px 0;color:${COLORS.foreground};letter-spacing:-0.3px">Réponse à votre réclamation</h1>
+    <p style="margin:0 0 20px 0;color:${COLORS.muted};font-size:14px">Bonjour, notre équipe a traité votre demande.</p>
+
+    ${infoBox(`
+      <div style="font-size:11px;color:${COLORS.muted};text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:6px">Référence dossier</div>
+      ${ref(opts.number)}
+    `)}
+
+    ${sectionTitle("Notre réponse")}
+    ${infoBox(`<div style="white-space:pre-line;color:${COLORS.foreground};font-size:14px;line-height:1.7">${escapeHtml(opts.message)}</div>`)}
+
+    <p style="margin:20px 0 0 0;color:${COLORS.muted};font-size:13px">Pour toute précision complémentaire, n'hésitez pas à répondre directement à cet email.</p>
+  `,
+    { preheader: `Réponse à votre réclamation ${opts.number}.` },
+  );
   return { subject, html };
 }
 
