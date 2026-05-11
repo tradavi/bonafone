@@ -1,9 +1,23 @@
+import Link from "next/link";
 import Image from "next/image";
-import { AlertCircle, Save, Mail, Phone, Send, Lock, Clock, Paperclip } from "lucide-react";
+import {
+  AlertCircle,
+  Save,
+  Mail,
+  Phone,
+  Send,
+  Lock,
+  Clock,
+  Paperclip,
+  Archive,
+  Inbox,
+  ArchiveRestore,
+} from "lucide-react";
 import { getAdminAllReclamations } from "@/lib/queries";
 import {
   updateReclamationStatus,
   sendReclamationReply,
+  toggleArchiveReclamation,
 } from "@/lib/actions/admin";
 
 export const metadata = { title: "Réclamations" };
@@ -60,9 +74,25 @@ function parseAttachments(raw: string | null): Attachment[] {
   return [];
 }
 
-export default async function AdminReclamationsPage() {
-  const items = await getAdminAllReclamations();
-  const open = items.filter(
+type Props = { searchParams: Promise<{ archived?: string }> };
+
+// Statuts "archivés" = traités/terminés. RESOLUE et CLOSE sortent les dossiers
+// de la liste active mais restent consultables via l'onglet Archivés.
+const ARCHIVED_STATUSES = new Set(["RESOLUE", "CLOSE"]);
+
+export default async function AdminReclamationsPage({ searchParams }: Props) {
+  const { archived } = await searchParams;
+  const showArchived = archived === "1";
+
+  const all = await getAdminAllReclamations();
+  const items = all.filter((r) =>
+    showArchived
+      ? ARCHIVED_STATUSES.has(r.status)
+      : !ARCHIVED_STATUSES.has(r.status),
+  );
+  const activeCount = all.filter((r) => !ARCHIVED_STATUSES.has(r.status)).length;
+  const archivedCount = all.length - activeCount;
+  const open = all.filter(
     (r) => r.status === "OUVERTE" || r.status === "EN_COURS",
   ).length;
 
@@ -71,14 +101,43 @@ export default async function AdminReclamationsPage() {
       <div className="bg-surface border border-border rounded-2xl p-6">
         <h1 className="text-2xl font-extrabold tracking-tight">Réclamations</h1>
         <p className="text-sm text-foreground-muted">
-          {items.length} dossier{items.length > 1 ? "s" : ""} · {open} à traiter
+          {activeCount} active{activeCount > 1 ? "s" : ""} · {archivedCount} archivée
+          {archivedCount > 1 ? "s" : ""} · {open} à traiter
         </p>
+      </div>
+
+      {/* Onglets Actifs / Archivés — pattern identique aux réparations */}
+      <div className="inline-flex rounded-lg border border-border overflow-hidden text-sm">
+        <Link
+          href="/admin/reclamations"
+          className={`px-4 py-2 inline-flex items-center gap-2 ${
+            !showArchived
+              ? "bg-primary text-white"
+              : "bg-surface-2 hover:bg-surface text-foreground-muted"
+          }`}
+        >
+          <Inbox className="h-3.5 w-3.5" />
+          Actives ({activeCount})
+        </Link>
+        <Link
+          href="/admin/reclamations?archived=1"
+          className={`px-4 py-2 inline-flex items-center gap-2 ${
+            showArchived
+              ? "bg-primary text-white"
+              : "bg-surface-2 hover:bg-surface text-foreground-muted"
+          }`}
+        >
+          <Archive className="h-3.5 w-3.5" />
+          Archivées ({archivedCount})
+        </Link>
       </div>
 
       <div className="grid gap-3">
         {items.length === 0 && (
           <div className="bg-surface border border-border rounded-2xl p-10 text-center text-foreground-muted">
-            Aucune réclamation pour le moment.
+            {showArchived
+              ? "Aucune réclamation archivée pour le moment."
+              : "Aucune réclamation active — bon travail !"}
           </div>
         )}
         {items.map((r) => {
@@ -125,8 +184,45 @@ export default async function AdminReclamationsPage() {
                     )}
                   </div>
                 </div>
-                <div className="text-xs text-foreground-muted">
-                  {r.createdAt.toLocaleString("fr-FR")}
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div className="text-xs text-foreground-muted">
+                    {r.createdAt.toLocaleString("fr-FR")}
+                  </div>
+                  {/* Bouton archiver/désarchiver — action 1 clic, ne touche pas
+                      aux autres champs (notes internes, assignation) */}
+                  <form action={toggleArchiveReclamation}>
+                    <input type="hidden" name="id" value={r.id} />
+                    <input
+                      type="hidden"
+                      name="action"
+                      value={showArchived ? "unarchive" : "archive"}
+                    />
+                    <button
+                      type="submit"
+                      className={
+                        showArchived
+                          ? "inline-flex items-center gap-1.5 px-2.5 py-1 bg-surface-2 border border-border hover:border-primary text-foreground-muted hover:text-primary rounded-lg text-xs font-semibold transition"
+                          : "inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 border border-amber-500/30 hover:border-amber-500 text-amber-400 rounded-lg text-xs font-semibold transition"
+                      }
+                      title={
+                        showArchived
+                          ? "Réouvrir le dossier (statut EN_COURS)"
+                          : "Archiver le dossier (statut CLOSE)"
+                      }
+                    >
+                      {showArchived ? (
+                        <>
+                          <ArchiveRestore className="h-3.5 w-3.5" />
+                          Réouvrir
+                        </>
+                      ) : (
+                        <>
+                          <Archive className="h-3.5 w-3.5" />
+                          Archiver
+                        </>
+                      )}
+                    </button>
+                  </form>
                 </div>
               </div>
 

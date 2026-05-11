@@ -685,6 +685,34 @@ export async function updateReclamationStatus(formData: FormData) {
   revalidatePath("/admin/reclamations");
 }
 
+/**
+ * Archive (statut CLOSE) ou désarchive (statut RESOLUE → on remet à
+ * EN_COURS) une réclamation en un clic — sans toucher aux notes internes
+ * ni à l'assignation. Diffère de updateReclamationStatus qui écrase tout.
+ */
+export async function toggleArchiveReclamation(formData: FormData) {
+  await requireAdmin();
+  const id = formData.get("id");
+  const action = formData.get("action"); // "archive" | "unarchive"
+  if (typeof id !== "string" || (action !== "archive" && action !== "unarchive")) {
+    throw new Error("Paramètres invalides");
+  }
+  const current = await prisma.reclamation.findUnique({
+    where: { id },
+    select: { status: true },
+  });
+  if (!current) throw new Error("Réclamation introuvable");
+
+  // Archive : on passe en CLOSE quoi qu'il en soit (point final).
+  // Désarchive : on remet en EN_COURS pour reprendre le traitement.
+  const nextStatus = action === "archive" ? "CLOSE" : "EN_COURS";
+  await prisma.reclamation.update({
+    where: { id },
+    data: { status: nextStatus },
+  });
+  revalidatePath("/admin/reclamations");
+}
+
 const ReclamationReplySchema = z.object({
   id: z.string().min(1),
   message: z.string().min(5, "Message trop court").max(5000),
