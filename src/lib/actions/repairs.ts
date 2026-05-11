@@ -109,6 +109,15 @@ export async function updateRepairStatus(formData: FormData) {
     revalidatePath(`/admin/reparations/${repair.number}`);
     revalidatePath(`/reparations/suivi`);
   }
+
+  // Auto-impression du bon de garantie au passage en RESTITUE.
+  // Le redirect doit etre HORS du try/catch (NEXT_REDIRECT) — ici on est
+  // deja hors try donc OK. Le print=1 declenche AutoPrint cote client.
+  // L'admin peut toujours revenir sur la page /garantie via le lien
+  // "Garantie" sur la fiche du dossier.
+  if (status === "RESTITUE" && repair) {
+    redirect(`/admin/reparations/${repair.number}/garantie?print=1`);
+  }
 }
 
 // =====================================================
