@@ -220,7 +220,7 @@ export async function upsertStoreSettings(
       if (!trimmed) return null;
       return apiFieldSet.has(f) ? encryptSecret(trimmed) : trimmed;
     }),
-    new Date().toISOString(),
+    new Date(), // ← Date object plutôt que ISO string : meilleure compat Prisma + pgbouncer
   ];
   // Postgres : placeholders $1, $2... (pas ? comme SQLite/MySQL)
   const insertPlaceholders = insertValues.map((_, i) => `$${i + 1}`).join(", ");
@@ -237,7 +237,17 @@ export async function upsertStoreSettings(
     ON CONFLICT ("id") DO UPDATE SET ${updateAssignments}
   `;
 
-  await prisma.$executeRawUnsafe(sql, ...insertValues);
+  try {
+    await prisma.$executeRawUnsafe(sql, ...insertValues);
+  } catch (err) {
+    // Log détaillé pour diagnostic (visible dans vercel logs).
+    // SQL et valeurs séparés — ne loggue pas les secrets en clair, juste les types.
+    console.error("[upsertStoreSettings] échec de l'upsert SQL");
+    console.error("  fields:", keys);
+    console.error("  values types:", insertValues.map((v) => (v === null ? "null" : typeof v)));
+    console.error("  error:", err);
+    throw err;
+  }
 
   // Invalide le cache cross-request de getStoreSettings — sinon l'admin
   // modifie l'adresse/téléphone et le front continue d'afficher l'ancien.

@@ -103,16 +103,24 @@ export async function updateStoreSettings(formData: FormData) {
     data[k] = v;
   }
 
-  await upsertStoreSettings(data);
-
-  // Invalide le cache OAuth — les nouvelles clés sont prises en compte au
-  // prochain auth() (sinon le cache 30s les masquerait jusqu'à expiration).
-  invalidateAuthCache();
-
-  revalidatePath("/", "layout");
-  revalidatePath("/admin/parametres");
-
-  redirect("/admin/parametres?updated=1");
+  // Pattern : on stocke la cible de redirection puis on redirect APRÈS le
+  // try/catch — sinon NEXT_REDIRECT serait attrapé par notre catch.
+  let target: string;
+  try {
+    await upsertStoreSettings(data);
+    // Invalide le cache OAuth — les nouvelles clés sont prises en compte au
+    // prochain auth() (sinon le cache 30s les masquerait jusqu'à expiration).
+    invalidateAuthCache();
+    revalidatePath("/", "layout");
+    revalidatePath("/admin/parametres");
+    target = "/admin/parametres?updated=1";
+  } catch (err) {
+    console.error("[updateStoreSettings] échec :", err);
+    const msg =
+      err instanceof Error ? err.message.slice(0, 250) : "Erreur DB inconnue";
+    target = `/admin/parametres?error=${encodeURIComponent(msg)}`;
+  }
+  redirect(target);
 }
 
 // =====================================================
