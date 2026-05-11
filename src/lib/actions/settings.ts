@@ -177,10 +177,10 @@ export async function sendTestEmail(formData: FormData) {
   });
 
   if (!result.ok) {
+    // Message Brevo brut surfacé en UI pour diagnostic précis
+    const detail = result.error ?? "Erreur inconnue";
     redirect(
-      `/admin/parametres?testEmail=error&msg=${encodeURIComponent(
-        "Brevo a refusé la requête — vérifie la clé API et que l'expéditeur est validé dans ton compte Brevo (Senders).",
-      )}`,
+      `/admin/parametres?testEmail=error&msg=${encodeURIComponent(`Brevo : ${detail}`)}`,
     );
   }
   if (result.skipped) {
@@ -228,10 +228,9 @@ export async function sendTestSms(formData: FormData) {
   });
 
   if (!result.ok) {
+    const detail = result.error ?? "Erreur inconnue";
     redirect(
-      `/admin/parametres?testSms=error&msg=${encodeURIComponent(
-        "Twilio a refusé la requête — vérifie les identifiants et le numéro expéditeur.",
-      )}`,
+      `/admin/parametres?testSms=error&msg=${encodeURIComponent(`Twilio : ${detail}`)}`,
     );
   }
   if (result.skipped) {

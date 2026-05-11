@@ -18,7 +18,16 @@ type SendEmailInput = {
   replyTo?: string;
 };
 
-export async function sendEmail(input: SendEmailInput): Promise<{ ok: boolean; skipped?: boolean }> {
+export type SendEmailResult = {
+  ok: boolean;
+  skipped?: boolean;
+  /** Message d'erreur Brevo (lisible humain) si ok=false */
+  error?: string;
+  /** Code de statut HTTP renvoyé par Brevo */
+  status?: number;
+};
+
+export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult> {
   const keys = await getStoreApiKeys();
   const apiKey = keys.brevoApiKey;
   const fromEmail = keys.brevoFromEmail;
@@ -48,12 +57,22 @@ export async function sendEmail(input: SendEmailInput): Promise<{ ok: boolean; s
     if (!res.ok) {
       const body = await res.text().catch(() => "");
       console.error(`[brevo] ${res.status} ${res.statusText} :`, body.slice(0, 500));
-      return { ok: false };
+      // Tente d'extraire le message lisible de la réponse JSON Brevo
+      let humanMessage = `${res.status} ${res.statusText}`;
+      try {
+        const parsed = JSON.parse(body);
+        if (parsed?.message) humanMessage = `${parsed.code ?? res.status} : ${parsed.message}`;
+        else if (typeof parsed === "string") humanMessage = parsed;
+      } catch {
+        if (body) humanMessage = body.slice(0, 250);
+      }
+      return { ok: false, status: res.status, error: humanMessage };
     }
     return { ok: true };
   } catch (err) {
     console.error("[brevo] exception:", err);
-    return { ok: false };
+    const msg = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: msg };
   }
 }
 
@@ -62,7 +81,14 @@ type SendSmsInput = {
   body: string;
 };
 
-export async function sendSms(input: SendSmsInput): Promise<{ ok: boolean; skipped?: boolean }> {
+export type SendSmsResult = {
+  ok: boolean;
+  skipped?: boolean;
+  error?: string;
+  status?: number;
+};
+
+export async function sendSms(input: SendSmsInput): Promise<SendSmsResult> {
   const keys = await getStoreApiKeys();
   const sid = keys.twilioAccountSid;
   const token = keys.twilioAuthToken;
@@ -90,12 +116,20 @@ export async function sendSms(input: SendSmsInput): Promise<{ ok: boolean; skipp
     if (!res.ok) {
       const body = await res.text().catch(() => "");
       console.error(`[twilio] ${res.status} ${res.statusText} :`, body.slice(0, 500));
-      return { ok: false };
+      let humanMessage = `${res.status} ${res.statusText}`;
+      try {
+        const parsed = JSON.parse(body);
+        if (parsed?.message) humanMessage = `${parsed.code ?? res.status} : ${parsed.message}`;
+      } catch {
+        if (body) humanMessage = body.slice(0, 250);
+      }
+      return { ok: false, status: res.status, error: humanMessage };
     }
     return { ok: true };
   } catch (err) {
     console.error("[twilio] exception:", err);
-    return { ok: false };
+    const msg = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: msg };
   }
 }
 
