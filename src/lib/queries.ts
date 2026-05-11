@@ -887,3 +887,150 @@ export async function getAdvancedKpis() {
     salesByDay: dayBuckets,
   };
 }
+
+// =====================================================
+// ADMIN — Notifications temps réel (bell)
+// =====================================================
+
+export type AdminNotificationItem = {
+  id: string;
+  kind: "devis" | "repair" | "reclamation" | "message" | "order";
+  number: string | null;
+  title: string;
+  subtitle: string;
+  href: string;
+  createdAt: Date;
+};
+
+/**
+ * État des notifications admin : compteurs par catégorie + dernières activités.
+ * Considère comme "non traités" :
+ *  - Devis en attente (status = DEMANDE_DEVIS)
+ *  - Réclamations ouvertes (status ∈ {OUVERTE, EN_COURS})
+ *  - Messages de contact sans historique de réponse
+ *  - Commandes PENDING (paiement non finalisé) — informatif uniquement
+ * Aucun stockage d'état "vu/non vu" — l'état dérive du statut métier,
+ * l'admin "clear" la notification en faisant son travail (changer le statut,
+ * répondre, etc.). Plus simple et sans migration de schéma.
+ */
+export async function getAdminNotifications(opts?: { recentLimit?: number }) {
+  const recentLimit = opts?.recentLimit ?? 10;
+  const [
+    devisCount,
+    reclamationsCount,
+    unreadMessagesCount,
+    pendingOrdersCount,
+    recentDevis,
+    recentReclamations,
+    recentMessages,
+    recentOrders,
+  ] = await Promise.all([
+    prisma.repair.count({ where: { status: "DEMANDE_DEVIS" } }),
+    prisma.reclamation.count({
+      where: { status: { in: ["OUVERTE", "EN_COURS"] } },
+    }),
+    prisma.contactMessage.count({ where: { history: null } }),
+    prisma.order.count({ where: { status: "PENDING" } }),
+    prisma.repair.findMany({
+      where: { status: "DEMANDE_DEVIS" },
+      orderBy: { createdAt: "desc" },
+      take: recentLimit,
+      select: {
+        id: true,
+        number: true,
+        customerName: true,
+        brand: true,
+        model: true,
+        issueType: true,
+        createdAt: true,
+      },
+    }),
+    prisma.reclamation.findMany({
+      where: { status: { in: ["OUVERTE", "EN_COURS"] } },
+      orderBy: { createdAt: "desc" },
+      take: recentLimit,
+      select: {
+        id: true,
+        number: true,
+        email: true,
+        type: true,
+        createdAt: true,
+      },
+    }),
+    prisma.contactMessage.findMany({
+      where: { history: null },
+      orderBy: { createdAt: "desc" },
+      take: recentLimit,
+      select: {
+        id: true,
+        name: true,
+        subject: true,
+        createdAt: true,
+      },
+    }),
+    prisma.order.findMany({
+      where: { status: "PENDING" },
+      orderBy: { createdAt: "desc" },
+      take: recentLimit,
+      select: {
+        id: true,
+        number: true,
+        total: true,
+        createdAt: true,
+      },
+    }),
+  ]);
+
+  const items: AdminNotificationItem[] = [
+    ...recentDevis.map((d) => ({
+      id: d.id,
+      kind: "devis" as const,
+      number: d.number,
+      title: `Devis en attente — ${d.brand} ${d.model}`,
+      subtitle: `${d.customerName} · ${d.issueType}`,
+      href: `/admin/reparations/${d.number}`,
+      createdAt: d.createdAt,
+    })),
+    ...recentReclamations.map((r) => ({
+      id: r.id,
+      kind: "reclamation" as const,
+      number: r.number,
+      title: `Réclamation — ${r.type.replace(/_/g, " ")}`,
+      subtitle: r.email,
+      href: `/admin/reclamations`,
+      createdAt: r.createdAt,
+    })),
+    ...recentMessages.map((m) => ({
+      id: m.id,
+      kind: "message" as const,
+      number: null,
+      title: m.subject || "Message de contact",
+      subtitle: `de ${m.name}`,
+      href: `/admin/messages`,
+      createdAt: m.createdAt,
+    })),
+    ...recentOrders.map((o) => ({
+      id: o.id,
+      kind: "order" as const,
+      number: o.number,
+      title: `Commande en attente paiement`,
+      subtitle: `${o.number} · ${o.total.toFixed(2)} €`,
+      href: `/admin/commandes`,
+      createdAt: o.createdAt,
+    })),
+  ]
+    // tri global par date desc, garde les N plus récents
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .slice(0, recentLimit);
+
+  return {
+    counts: {
+      devis: devisCount,
+      reclamations: reclamationsCount,
+      messages: unreadMessagesCount,
+      orders: pendingOrdersCount,
+      total: devisCount + reclamationsCount + unreadMessagesCount,
+    },
+    items,
+  };
+}

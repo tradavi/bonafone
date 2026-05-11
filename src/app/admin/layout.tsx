@@ -11,7 +11,8 @@ import {
 import { LogoMark } from "@/components/ui/logo";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
-import { countDevisRequests } from "@/lib/queries";
+import { NotificationBell } from "@/components/admin/notification-bell";
+import { countDevisRequests, getAdminNotifications } from "@/lib/queries";
 
 const ICON_CLS = "h-4 w-4";
 
@@ -22,7 +23,21 @@ export const metadata = {
 };
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const devisCount = await countDevisRequests().catch(() => 0);
+  const [devisCount, notifications] = await Promise.all([
+    countDevisRequests().catch(() => 0),
+    getAdminNotifications({ recentLimit: 10 }).catch(() => ({
+      counts: { devis: 0, reclamations: 0, messages: 0, orders: 0, total: 0 },
+      items: [] as never[],
+    })),
+  ]);
+  // Sérialise les dates pour passer au composant client (les Date ne traversent pas)
+  const initialNotifications = {
+    counts: notifications.counts,
+    items: notifications.items.map((i) => ({
+      ...i,
+      createdAt: i.createdAt.toISOString(),
+    })),
+  };
 
   const NAV = [
     { href: "/admin", label: "Tableau de bord", icon: <LayoutDashboard className={ICON_CLS} /> },
@@ -50,6 +65,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               <div className="font-bold text-sm">Back-office</div>
               <div className="text-[10px] text-foreground-muted uppercase tracking-wider">Admin</div>
             </div>
+            <NotificationBell initial={initialNotifications} />
             <ThemeToggle compact />
           </div>
           <SidebarNav items={NAV} />
