@@ -21,7 +21,8 @@ const SignInSchema = z.object({
 export async function signInAction(formData: FormData) {
   const raw: Record<string, string> = {};
   for (const [k, v] of formData.entries()) {
-    if (typeof v === "string") raw[k] = v;
+    // Trim défensif (sauf password : voir signUpAction).
+    if (typeof v === "string") raw[k] = k === "password" ? v : v.trim();
   }
   const parsed = SignInSchema.safeParse(raw);
   if (!parsed.success) {
@@ -66,7 +67,9 @@ const SignUpSchema = z.object({
 export async function signUpAction(formData: FormData) {
   const raw: Record<string, string> = {};
   for (const [k, v] of formData.entries()) {
-    if (typeof v === "string") raw[k] = v;
+    // Trim défensif sur tout sauf le mot de passe (un mdp peut commencer
+    // par un espace volontaire — rare mais on respecte).
+    if (typeof v === "string") raw[k] = k === "password" ? v : v.trim();
   }
   const parsed = SignUpSchema.safeParse(raw);
   if (!parsed.success) {

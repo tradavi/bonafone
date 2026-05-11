@@ -140,17 +140,40 @@ const credentialsProvider = Credentials({
     password: { label: "Mot de passe", type: "password" },
   },
   async authorize(credentials) {
-    const parsed = CredentialsSchema.safeParse(credentials);
-    if (!parsed.success) return null;
+    // Normalisation défensive : trim partout pour absorber un copy-paste
+    // qui aurait laissé un espace en début/fin (cause classique de
+    // "mot de passe incorrect" qui rend les utilisateurs fous).
+    const rawEmail = typeof credentials?.email === "string" ? credentials.email.trim() : "";
+    const rawPassword = typeof credentials?.password === "string" ? credentials.password : "";
+    const email = rawEmail.toLowerCase();
 
-    const { email, password } = parsed.data;
-    const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
-    });
-    if (!user || !user.passwordHash) return null;
+    const parsed = CredentialsSchema.safeParse({ email, password: rawPassword });
+    if (!parsed.success) {
+      console.warn(
+        `[auth] Schema invalide pour "${email}": ${parsed.error.issues.map((i) => i.message).join(", ")}`,
+      );
+      return null;
+    }
 
-    const valid = await bcrypt.compare(password, user.passwordHash);
-    if (!valid) return null;
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      console.warn(`[auth] User introuvable: "${email}"`);
+      return null;
+    }
+    if (!user.passwordHash) {
+      console.warn(
+        `[auth] User "${email}" n'a pas de passwordHash (compte OAuth uniquement ?)`,
+      );
+      return null;
+    }
+
+    const valid = await bcrypt.compare(rawPassword, user.passwordHash);
+    if (!valid) {
+      console.warn(
+        `[auth] Mauvais mot de passe pour "${email}" (hash prefix ${user.passwordHash.slice(0, 7)})`,
+      );
+      return null;
+    }
 
     return {
       id: user.id,

@@ -7,11 +7,25 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { CACHE_TAGS, generateNextRepairNumber } from "@/lib/queries";
 import { saveUploadedImage, isImageFile } from "@/lib/uploads";
+import bcrypt from "bcryptjs";
 import {
   sendEmail,
   tplReclamationReply,
   tplContactReply,
+  tplAccountCreatedByAdmin,
 } from "@/lib/notifications";
+/**
+ * Génère un mot de passe temporaire lisible.
+ * 10 caractères, sans confusions (pas de 0/O, 1/l/I), faciles à lire/dicter.
+ */
+function generateTemporaryPassword(): string {
+  const chars = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let out = "";
+  for (let i = 0; i < 10; i++) {
+    out += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return out;
+}
 
 async function requireAdmin() {
   const session = await auth();
@@ -324,6 +338,10 @@ export async function createRepairAdmin(formData: FormData) {
       userId = byPhone?.id ?? null;
     }
   }
+  // Variable pour mémoriser le mdp temporaire généré (envoyé après création
+  // de la réparation, pour pouvoir y inclure le numéro de dossier).
+  let tempPasswordToSend: { firstName: string; email: string; password: string } | null = null;
+
   if (!userId) {
     // Aucun match — création d'un nouveau client.
     // Email synthétique si l'admin n'en a pas fourni (sera remplaçable
@@ -332,9 +350,16 @@ export async function createRepairAdmin(formData: FormData) {
     const tokens = data.customerName.trim().split(/\s+/);
     const firstName = tokens[0] ?? data.customerName;
     const lastName = tokens.slice(1).join(" ") || null;
-    const email = data.customerEmail
-      ? data.customerEmail.toLowerCase()
+    const hasRealEmail = Boolean(data.customerEmail);
+    const email = hasRealEmail
+      ? data.customerEmail!.toLowerCase()
       : `tel-${phoneDigits}@no-email.bonafone.local`;
+
+    // Si on a un vrai email, on génère aussi un mdp temporaire pour que
+    // le client puisse se connecter et suivre sa réparation côté front.
+    const tempPassword = hasRealEmail ? generateTemporaryPassword() : null;
+    const passwordHash = tempPassword ? await bcrypt.hash(tempPassword, 12) : null;
+
     try {
       const newClient = await prisma.user.create({
         data: {
@@ -343,10 +368,17 @@ export async function createRepairAdmin(formData: FormData) {
           lastName,
           phone: data.customerPhone,
           role: "CLIENT",
+          passwordHash,
+          loyalty: { create: {} },
         },
       });
       userId = newClient.id;
-      console.log(`👤 Nouveau client auto-créé : ${firstName} ${lastName ?? ""} (${email})`);
+      console.log(
+        `👤 Nouveau client auto-créé : ${firstName} ${lastName ?? ""} (${email})`,
+      );
+      if (tempPassword && hasRealEmail) {
+        tempPasswordToSend = { firstName, email, password: tempPassword };
+      }
     } catch (err) {
       // Conflit d'email (course condition rare) → on continue sans userId,
       // la réparation reste valide avec les coordonnées dénormalisées.
@@ -384,6 +416,30 @@ export async function createRepairAdmin(formData: FormData) {
       createdBy: user.id,
     },
   });
+
+  // Envoi du mdp temporaire au nouveau client (best-effort, n'interrompt pas
+  // la création du dossier si l'email échoue).
+  if (tempPasswordToSend) {
+    try {
+      const tpl = tplAccountCreatedByAdmin({
+        firstName: tempPasswordToSend.firstName,
+        email: tempPasswordToSend.email,
+        temporaryPassword: tempPasswordToSend.password,
+        repairNumber: number,
+      });
+      await sendEmail({
+        to: tempPasswordToSend.email,
+        toName: tempPasswordToSend.firstName,
+        subject: tpl.subject,
+        html: tpl.html,
+      });
+      console.log(
+        `📧 Identifiants envoyés à ${tempPasswordToSend.email} pour ${number}`,
+      );
+    } catch (err) {
+      console.warn("[createRepairAdmin] échec envoi email identifiants:", err);
+    }
+  }
 
   revalidatePath("/admin/reparations");
   revalidatePath("/admin");

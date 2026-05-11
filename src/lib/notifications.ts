@@ -230,6 +230,45 @@ export function tplWelcome(opts: { firstName: string }) {
   return { subject, html };
 }
 
+/**
+ * Envoyé quand l'admin crée un compte client lors d'une réparation.
+ * Le client reçoit un mot de passe temporaire qu'il peut changer
+ * depuis son espace.
+ */
+export function tplAccountCreatedByAdmin(opts: {
+  firstName: string;
+  email: string;
+  temporaryPassword: string;
+  repairNumber?: string;
+}) {
+  const subject = `Bienvenue chez ${STORE.name} — accès à votre espace client`;
+  const repairLine = opts.repairNumber
+    ? `<p>Votre dossier de réparation <strong style="color:#ef4444;font-family:ui-monospace,Menlo,monospace">${opts.repairNumber}</strong> est désormais accessible depuis votre espace.</p>`
+    : "";
+  const html = emailLayout(`
+    <p>Bonjour ${escapeHtml(opts.firstName)},</p>
+    <p>Un espace client a été créé pour vous chez <strong>${STORE.name}</strong>.</p>
+    ${repairLine}
+    <p>Vos identifiants de connexion :</p>
+    <table style="width:100%;border-collapse:collapse;margin:16px 0;background:#f9fafb;border-radius:8px;overflow:hidden">
+      <tr>
+        <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;font-size:13px;color:#6b7280">Email</td>
+        <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;font-family:ui-monospace,Menlo,monospace;font-size:14px;font-weight:600">${escapeHtml(opts.email)}</td>
+      </tr>
+      <tr>
+        <td style="padding:10px 14px;font-size:13px;color:#6b7280">Mot de passe temporaire</td>
+        <td style="padding:10px 14px;font-family:ui-monospace,Menlo,monospace;font-size:14px;font-weight:600;color:#ef4444">${escapeHtml(opts.temporaryPassword)}</td>
+      </tr>
+    </table>
+    <p><a href="${baseUrl()}/connexion" style="display:inline-block;background:#ef4444;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:600">Se connecter</a></p>
+    <p style="color:#6b7280;font-size:13px;margin-top:24px">
+      Pour votre sécurité, changez ce mot de passe dès votre première connexion depuis l'onglet
+      <strong>Mon profil</strong>.
+    </p>
+  `);
+  return { subject, html };
+}
+
 export function tplReclamationReceived(opts: { number: string }) {
   const subject = `Votre réclamation ${opts.number} a bien été reçue`;
   const html = emailLayout(`
