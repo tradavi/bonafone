@@ -60,24 +60,48 @@ export function LogoMark({ className }: { className?: string }) {
 }
 
 /**
- * Logo complet officiel — image PNG hostée dans public/.
- * Inclut l'icône, le wordmark "BONAFONE" et la tagline "L'EXPERT EN
- * RÉPARATION" en un seul élément graphique. Utilisé dans le header public,
- * les emails, et les documents imprimés (devis PDF, tickets).
+ * Logo complet — SVG mark + wordmark texte + tagline.
+ * Utilisé partout sur le site (header, footer, etc.) car léger,
+ * accessible, et stylable via les variables CSS du thème (dark/light).
  */
 export function LogoFull({
   className,
+  showTagline = true,
 }: {
   className?: string;
-  /** Conservé pour compat — la tagline est désormais intégrée à l'image. */
   showTagline?: boolean;
 }) {
+  return (
+    <div className={cn("flex items-center gap-3", className)}>
+      <LogoMark className="h-10 w-auto shrink-0" />
+      <div className="leading-none">
+        <div className="text-2xl font-black tracking-tight text-primary">
+          BONAFONE
+        </div>
+        {showTagline && (
+          <div className="text-[9px] uppercase tracking-[0.18em] text-foreground-muted mt-1">
+            L&apos;expert en réparation
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Logo image officiel — PNG hostée dans public/bonafone-logo.png.
+ * Réservé aux documents officiels (devis PDF, factures, tickets imprimés)
+ * et aux emails (via baseUrl()/bonafone-logo.png dans les templates).
+ * À ne PAS utiliser dans le UI du site (header/footer) pour préserver
+ * le contraste dark/light et la légèreté du DOM.
+ */
+export function LogoImage({ className }: { className?: string }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src="/bonafone-logo.png"
       alt="Bonafone — L'expert en réparation"
-      className={cn("h-12 w-auto", className)}
+      className={cn("h-14 w-auto", className)}
     />
   );
 }

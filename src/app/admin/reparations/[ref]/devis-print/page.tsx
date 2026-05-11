@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { formatPrice, priceBreakdown, VAT_RATE, STORE } from "@/lib/utils";
-import { LogoFull } from "@/components/ui/logo";
+import { LogoImage } from "@/components/ui/logo";
 import { PrintButton } from "./print-button";
 
 type Props = { params: Promise<{ ref: string }> };
@@ -53,7 +53,7 @@ export default async function DevisPrintPage({ params }: Props) {
           {/* Header — logo officiel (image PNG incluant wordmark + tagline)
               + adresse a droite, alignes verticalement au centre */}
           <div className="flex items-center justify-between pb-6 border-b-2 border-[#ff2d3a] gap-4 flex-wrap">
-            <LogoFull className="h-14 w-auto" />
+            <LogoImage className="h-14 w-auto" />
             <div className="text-right text-xs text-zinc-600 leading-relaxed">
               <div>{STORE.address}</div>
               <div>Tél : {STORE.phone}</div>
