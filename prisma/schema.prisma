@@ -1,14 +1,21 @@
 // Prisma schema — Plateforme E-Commerce & Réparations Bonafone
-// Dev: SQLite (file:./dev.db). Prod: bascule vers postgresql via DATABASE_URL.
+//
+// 🔧 Dev local : provider = "sqlite", DATABASE_URL="file:./dev.db"
+// 🚀 Prod Vercel/Supabase : remplacer par :
+//        provider  = "postgresql"
+//        url       = env("DATABASE_URL")
+//        directUrl = env("DIRECT_URL")
+//    + DATABASE_URL = pooler Supabase (port 6543)
+//    + DIRECT_URL   = connexion directe (port 5432)
+//    Voir DEPLOY.md pour la procédure complète.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
 
 // =====================================================
