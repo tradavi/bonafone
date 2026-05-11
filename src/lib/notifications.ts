@@ -138,100 +138,121 @@ export async function sendSms(input: SendSmsInput): Promise<SendSmsResult> {
 // =====================================================
 
 // =====================================================
-// EMAIL DESIGN — palette + helpers réutilisables
+// EMAIL DESIGN — calqué sur le PDF devis (fond blanc, accent rouge)
 // =====================================================
 // Conventions :
-// - Tables imbriquées pour max compat (Outlook, Gmail, mobile, etc.)
-// - Couleurs hardcoded (les variables CSS ne marchent pas en HTML email)
-// - Police système (système prioritaire, Arial fallback)
-// - max-width 600px + width 100% pour responsive
-// - Logo : carré rouge avec "b" en CSS pur (pas d'image hostée)
+// - Fond blanc, texte zinc-900 (contraste WCAG AA)
+// - Accent rouge Bonafone #ff2d3a (logo, totaux, boutons)
+// - Boîtes en zinc-50 + bordure zinc-200 (= identique au PDF)
+// - Header : logo gauche + adresse magasin droite, séparé du contenu par
+//   une bordure rouge épaisse (signature visuelle du devis)
+// - Tables imbriquées pour compat Outlook/Gmail/iOS Mail
+// - Police système (Arial fallback)
 
 const COLORS = {
-  bg: "#0a0a0a",
-  surface: "#131316",
-  surface2: "#1c1c21",
-  border: "#2a2a31",
-  primary: "#ff2d3a",
+  page: "#f4f4f5", // zinc-100 — fond de la page mail (autour de la carte)
+  surface: "#ffffff", // blanc — la "carte" email
+  surface2: "#fafafa", // zinc-50 — boîtes d'info, lignes de table alt.
+  border: "#e4e4e7", // zinc-200 — bordures fines
+  borderStrong: "#d4d4d8", // zinc-300 — séparateurs de tableau
+  primary: "#ff2d3a", // rouge Bonafone
   primaryDark: "#c4111e",
-  foreground: "#f5f5f7",
-  muted: "#a1a1aa",
-  subtle: "#71717a",
-  success: "#10b981",
-  warning: "#f59e0b",
+  primarySoft: "#fef2f2", // red-50 — fond doux pour la ligne TOTAL TTC
+  foreground: "#18181b", // zinc-900 — texte principal
+  muted: "#52525b", // zinc-600 — texte secondaire
+  subtle: "#71717a", // zinc-500 — labels uppercase, footer
+  faint: "#a1a1aa", // zinc-400 — copyright
+  success: "#15803d", // green-700
+  successBg: "#f0fdf4", // green-50
+  successBorder: "#bbf7d0", // green-200
+  warning: "#b45309", // amber-700
+  warningBg: "#fffbeb", // amber-50
+  warningBorder: "#fde68a", // amber-200
 };
 
 const FONT_STACK =
   "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 const MONO_STACK = "ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace";
 
-/** Bouton CTA principal — fond rouge, blanc, padding généreux */
+/** Bouton CTA principal — fond rouge Bonafone */
 function btn(href: string, label: string): string {
-  return `<a href="${href}" style="display:inline-block;background:${COLORS.primary};color:#ffffff;padding:13px 26px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;font-family:${FONT_STACK};line-height:1">${escapeHtml(label)}</a>`;
+  return `<a href="${href}" style="display:inline-block;background:${COLORS.primary};color:#ffffff;padding:13px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;font-family:${FONT_STACK};line-height:1">${escapeHtml(label)}</a>`;
 }
 
-/** Référence dossier — badge mono rouge */
+/** Référence dossier — mono rouge sur fond rouge très clair (style "tag PDF") */
 function ref(number: string): string {
-  return `<span style="display:inline-block;background:rgba(255,45,58,0.12);color:${COLORS.primary};font-family:${MONO_STACK};font-size:13px;font-weight:700;padding:3px 9px;border-radius:5px;border:1px solid rgba(255,45,58,0.3);letter-spacing:0.5px">${escapeHtml(number)}</span>`;
+  return `<span style="display:inline-block;background:${COLORS.primarySoft};color:${COLORS.primary};font-family:${MONO_STACK};font-size:13px;font-weight:700;padding:4px 10px;border-radius:4px;letter-spacing:0.5px">${escapeHtml(number)}</span>`;
 }
 
-/** Encart d'info — neutre, success ou warning */
+/** Encart d'info — couleur selon variant (neutre/success/warning) */
 function infoBox(content: string, variant: "neutral" | "success" | "warning" = "neutral"): string {
   const v = {
     neutral: { bg: COLORS.surface2, border: COLORS.border },
-    success: { bg: "rgba(16,185,129,0.08)", border: "rgba(16,185,129,0.35)" },
-    warning: { bg: "rgba(245,158,11,0.08)", border: "rgba(245,158,11,0.35)" },
+    success: { bg: COLORS.successBg, border: COLORS.successBorder },
+    warning: { bg: COLORS.warningBg, border: COLORS.warningBorder },
   }[variant];
-  return `<div style="background:${v.bg};border:1px solid ${v.border};border-radius:10px;padding:16px 18px;margin:16px 0">${content}</div>`;
+  return `<div style="background:${v.bg};border:1px solid ${v.border};border-radius:8px;padding:16px 18px;margin:16px 0">${content}</div>`;
 }
 
-/** Petit titre de section dans le contenu */
+/** Petit titre de section uppercase letter-spaced — identique au PDF */
 function sectionTitle(text: string): string {
-  return `<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:${COLORS.muted};margin:24px 0 10px 0;font-family:${FONT_STACK}">${escapeHtml(text)}</div>`;
+  return `<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:${COLORS.subtle};margin:22px 0 8px 0;font-family:${FONT_STACK}">${escapeHtml(text)}</div>`;
 }
 
-/** Logo SVG (carré rouge avec b stylisé + ondes) en data URI, replié pour email */
-function logoBlock(): string {
-  // Construit avec une table HTML pure pour compat max (les SVG sont bloqués
-  // par Gmail/Outlook). Carré arrondi rouge + "b" blanc à côté du wordmark.
+/**
+ * Header type "facture" : logo gauche + coordonnées magasin droite.
+ * Reprend la signature visuelle du PDF devis (bordure rouge épaisse en bas).
+ */
+function letterheadBlock(): string {
   return `
-    <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
       <tr>
+        <!-- Logo + nom + tagline -->
         <td style="vertical-align:middle">
-          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="40" height="40" style="background:${COLORS.primary};border-radius:9px">
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0">
             <tr>
-              <td align="center" valign="middle" height="40" style="height:40px;font-family:'Arial Black',Arial,sans-serif;color:#ffffff;font-size:26px;font-weight:900;line-height:40px">b</td>
+              <td style="vertical-align:middle">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="44" height="44" style="background:${COLORS.primary};border-radius:10px">
+                  <tr>
+                    <td align="center" valign="middle" height="44" style="height:44px;font-family:'Arial Black',Arial,sans-serif;color:#ffffff;font-size:28px;font-weight:900;line-height:44px">b</td>
+                  </tr>
+                </table>
+              </td>
+              <td style="padding-left:14px;vertical-align:middle">
+                <div style="font-size:22px;font-weight:900;color:${COLORS.primary};letter-spacing:-0.5px;line-height:1;font-family:${FONT_STACK}">BONAFONE</div>
+                <div style="font-size:9px;color:${COLORS.subtle};letter-spacing:2px;text-transform:uppercase;margin-top:5px;font-family:${FONT_STACK};font-weight:600">${escapeHtml(STORE.tagline)}</div>
+              </td>
             </tr>
           </table>
         </td>
-        <td style="padding-left:14px;vertical-align:middle">
-          <div style="font-size:22px;font-weight:900;color:${COLORS.primary};letter-spacing:-0.5px;line-height:1;font-family:${FONT_STACK}">BONAFONE</div>
-          <div style="font-size:9px;color:${COLORS.muted};letter-spacing:1.8px;text-transform:uppercase;margin-top:5px;font-family:${FONT_STACK};font-weight:600">${escapeHtml(STORE.tagline)}</div>
+        <!-- Coordonnées magasin (cachées sur très petits écrans) -->
+        <td align="right" style="vertical-align:middle;font-size:11px;color:${COLORS.muted};line-height:1.55;font-family:${FONT_STACK}" class="store-info">
+          <div>${escapeHtml(STORE.address)}</div>
+          <div>Tél : ${escapeHtml(STORE.phone)}</div>
+          <div>Email : ${escapeHtml(STORE.email)}</div>
         </td>
       </tr>
     </table>`;
 }
 
-/** Footer email avec coordonnées + petit copyright */
+/** Footer minimaliste — copyright + URL */
 function footerBlock(): string {
   const year = new Date().getFullYear();
   return `
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
       <tr>
-        <td style="font-size:12px;color:${COLORS.muted};line-height:1.7;font-family:${FONT_STACK}">
-          <div style="color:${COLORS.foreground};font-weight:700;font-size:13px;margin-bottom:4px">${escapeHtml(STORE.name)}</div>
-          <div style="color:${COLORS.subtle}">${escapeHtml(STORE.address)}</div>
-          <div style="margin-top:4px">
+        <td style="font-size:11px;color:${COLORS.subtle};line-height:1.7;font-family:${FONT_STACK};text-align:center">
+          <div style="color:${COLORS.foreground};font-weight:700;font-size:12px;margin-bottom:6px">${escapeHtml(STORE.name)}</div>
+          <div>${escapeHtml(STORE.address)}</div>
+          <div style="margin-top:2px">
             <a href="tel:${STORE.phone.replace(/\s/g, "")}" style="color:${COLORS.muted};text-decoration:none">${escapeHtml(STORE.phone)}</a>
-            <span style="color:${COLORS.subtle};margin:0 6px">·</span>
+            <span style="color:${COLORS.faint};margin:0 6px">·</span>
             <a href="mailto:${STORE.email}" style="color:${COLORS.muted};text-decoration:none">${escapeHtml(STORE.email)}</a>
           </div>
-          <div style="color:${COLORS.subtle};margin-top:4px">${escapeHtml(STORE.hours)}</div>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding-top:14px;border-top:1px solid ${COLORS.border};margin-top:14px;font-size:10px;color:${COLORS.subtle};font-family:${FONT_STACK}">
-          © ${year} ${escapeHtml(STORE.name)} · <a href="${baseUrl()}" style="color:${COLORS.subtle};text-decoration:underline">bonafone.com</a>
+          <div style="margin-top:2px">${escapeHtml(STORE.hours)}</div>
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid ${COLORS.border};color:${COLORS.faint};font-size:10px">
+            © ${year} ${escapeHtml(STORE.name)} · <a href="${baseUrl()}" style="color:${COLORS.faint};text-decoration:underline">bonafone.com</a>
+          </div>
         </td>
       </tr>
     </table>`;
@@ -250,31 +271,40 @@ function emailLayout(content: string, opts?: { preheader?: string }): string {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="x-apple-disable-message-reformatting">
-  <meta name="color-scheme" content="dark">
-  <meta name="supported-color-schemes" content="dark light">
+  <meta name="color-scheme" content="light only">
+  <meta name="supported-color-schemes" content="light">
   <title>${escapeHtml(STORE.name)}</title>
+  <style>
+    /* Force light mode même si le client a l'apparence sombre activée. */
+    :root { color-scheme: light; supported-color-schemes: light; }
+    @media (max-width: 480px) {
+      .store-info { display: none !important; }
+      .email-card { border-radius: 0 !important; }
+      .pad-x { padding-left: 22px !important; padding-right: 22px !important; }
+    }
+  </style>
 </head>
-<body style="margin:0;padding:0;background:${COLORS.bg};color:${COLORS.foreground};font-family:${FONT_STACK}">
+<body style="margin:0;padding:0;background:${COLORS.page};color:${COLORS.foreground};font-family:${FONT_STACK};-webkit-text-size-adjust:100%">
   ${preheader}
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:${COLORS.bg};min-height:100vh">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:${COLORS.page}">
     <tr>
       <td align="center" style="padding:32px 12px">
-        <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="max-width:600px;width:100%;background:${COLORS.surface};border:1px solid ${COLORS.border};border-radius:16px;overflow:hidden">
-          <!-- HEADER -->
+        <table role="presentation" width="640" cellspacing="0" cellpadding="0" border="0" class="email-card" style="max-width:640px;width:100%;background:${COLORS.surface};border:1px solid ${COLORS.border};border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04)">
+          <!-- HEADER (letterhead façon facture) -->
           <tr>
-            <td style="padding:24px 32px;border-bottom:1px solid ${COLORS.border};background:linear-gradient(180deg,rgba(255,45,58,0.04) 0%,transparent 100%)">
-              ${logoBlock()}
+            <td class="pad-x" style="padding:28px 36px 22px 36px;border-bottom:2px solid ${COLORS.primary};background:${COLORS.surface}">
+              ${letterheadBlock()}
             </td>
           </tr>
           <!-- CONTENT -->
           <tr>
-            <td style="padding:32px;font-size:15px;line-height:1.65;color:${COLORS.foreground};font-family:${FONT_STACK}">
+            <td class="pad-x" style="padding:32px 36px;font-size:15px;line-height:1.65;color:${COLORS.foreground};font-family:${FONT_STACK};background:${COLORS.surface}">
               ${content}
             </td>
           </tr>
           <!-- FOOTER -->
           <tr>
-            <td style="padding:24px 32px;background:${COLORS.bg};border-top:1px solid ${COLORS.border}">
+            <td class="pad-x" style="padding:22px 36px 28px 36px;background:${COLORS.surface2};border-top:1px solid ${COLORS.border}">
               ${footerBlock()}
             </td>
           </tr>
@@ -329,7 +359,7 @@ export function tplRepairQuote(opts: {
   parts: { name: string; costTtc: number }[];
   message?: string;
 }) {
-  // Décomposition TVA belge (21%) calculée ici pour cohérence avec le PDF.
+  // Décomposition TVA belge (21%) — cohérent avec lib/utils#priceBreakdown.
   const VAT = 0.21;
   const fmt = (n: number) =>
     new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(n);
@@ -339,86 +369,137 @@ export function tplRepairQuote(opts: {
   };
   const totals = breakdown(opts.totalTtc);
 
+  // Main d'œuvre = total - sum(pièces). Si positif, on l'ajoute en ligne.
+  // Mimétisme du PDF (devis-print/page.tsx).
+  const partsTotalTtc = opts.parts.reduce((s, p) => s + p.costTtc, 0);
+  const laborTtc = Math.max(0, opts.totalTtc - partsTotalTtc);
+
   const subject = `Devis ${opts.number} — ${fmt(opts.totalTtc)} TTC`;
   const trackUrl = `${baseUrl()}/reparations/suivi?ref=${opts.number}`;
-  const firstName = opts.customerName.split(" ")[0] || opts.customerName;
+  const today = new Date().toLocaleDateString("fr-FR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 
-  const partsHtml = opts.parts.length
-    ? `
-      ${sectionTitle("Détail des pièces & main d'œuvre")}
-      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;margin:0 0 8px 0;font-family:${FONT_STACK}">
-        <thead>
-          <tr>
-            <th align="left" style="padding:10px 12px;border-bottom:1px solid ${COLORS.border};font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:${COLORS.muted}">Désignation</th>
-            <th align="right" style="padding:10px 12px;border-bottom:1px solid ${COLORS.border};font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:${COLORS.muted}">HT</th>
-            <th align="right" style="padding:10px 12px;border-bottom:1px solid ${COLORS.border};font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:${COLORS.muted}">TTC</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${opts.parts
-            .map((p) => {
-              const b = breakdown(p.costTtc);
-              return `<tr>
-                <td style="padding:11px 12px;border-bottom:1px solid ${COLORS.border};font-size:14px;color:${COLORS.foreground}">${escapeHtml(p.name)}</td>
-                <td align="right" style="padding:11px 12px;border-bottom:1px solid ${COLORS.border};font-size:13px;color:${COLORS.muted};font-family:${MONO_STACK}">${fmt(b.ht)}</td>
-                <td align="right" style="padding:11px 12px;border-bottom:1px solid ${COLORS.border};font-size:14px;color:${COLORS.foreground};font-family:${MONO_STACK};font-weight:600">${fmt(b.ttc)}</td>
-              </tr>`;
-            })
-            .join("")}
-        </tbody>
-      </table>`
-    : "";
+  // Lignes du tableau (pièces + main d'œuvre éventuelle).
+  const rowsHtml = (() => {
+    const partRows = opts.parts.length
+      ? opts.parts
+          .map((p) => {
+            const b = breakdown(p.costTtc);
+            return `<tr>
+              <td style="padding:12px 8px;border-bottom:1px solid ${COLORS.border};font-size:14px;color:${COLORS.foreground};font-family:${FONT_STACK}">${escapeHtml(p.name)}</td>
+              <td align="right" style="padding:12px 8px;border-bottom:1px solid ${COLORS.border};font-size:13px;color:${COLORS.muted};font-family:${MONO_STACK}">${fmt(b.ht)}</td>
+              <td align="right" style="padding:12px 8px;border-bottom:1px solid ${COLORS.border};font-size:14px;color:${COLORS.foreground};font-family:${MONO_STACK};font-weight:600">${fmt(b.ttc)}</td>
+            </tr>`;
+          })
+          .join("")
+      : `<tr>
+          <td style="padding:12px 8px;border-bottom:1px solid ${COLORS.border};font-size:14px;color:${COLORS.foreground};font-family:${FONT_STACK}">Pièces (à définir)</td>
+          <td align="right" style="padding:12px 8px;border-bottom:1px solid ${COLORS.border};font-size:13px;color:${COLORS.faint};font-family:${MONO_STACK}">—</td>
+          <td align="right" style="padding:12px 8px;border-bottom:1px solid ${COLORS.border};font-size:13px;color:${COLORS.faint};font-family:${MONO_STACK}">—</td>
+        </tr>`;
 
-  const totalsTable = `
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;margin:20px 0 8px 0;background:${COLORS.surface2};border:1px solid ${COLORS.border};border-radius:10px;overflow:hidden;font-family:${FONT_STACK}">
-      <tr>
-        <td style="padding:12px 18px;font-size:13px;color:${COLORS.muted}">Sous-total HT</td>
-        <td align="right" style="padding:12px 18px;font-size:14px;color:${COLORS.foreground};font-family:${MONO_STACK}">${fmt(totals.ht)}</td>
-      </tr>
-      <tr>
-        <td style="padding:12px 18px;border-top:1px solid ${COLORS.border};font-size:13px;color:${COLORS.muted}">TVA 21 %</td>
-        <td align="right" style="padding:12px 18px;border-top:1px solid ${COLORS.border};font-size:14px;color:${COLORS.foreground};font-family:${MONO_STACK}">${fmt(totals.vat)}</td>
-      </tr>
-      <tr>
-        <td style="padding:16px 18px;border-top:1px solid ${COLORS.border};background:rgba(255,45,58,0.06);font-size:15px;font-weight:700;color:${COLORS.foreground}">Total TTC</td>
-        <td align="right" style="padding:16px 18px;border-top:1px solid ${COLORS.border};background:rgba(255,45,58,0.06);font-size:22px;font-weight:800;color:${COLORS.primary};font-family:${MONO_STACK};letter-spacing:-0.5px">${fmt(totals.ttc)}</td>
-      </tr>
-    </table>`;
+    const laborRow =
+      laborTtc > 0
+        ? (() => {
+            const b = breakdown(laborTtc);
+            return `<tr>
+              <td style="padding:12px 8px;border-bottom:1px solid ${COLORS.border};font-size:14px;color:${COLORS.foreground};font-family:${FONT_STACK}">
+                <div style="font-weight:500">Main d'œuvre</div>
+                <div style="font-size:11px;color:${COLORS.subtle};margin-top:2px">Démontage, réparation, tests, remontage</div>
+              </td>
+              <td align="right" style="padding:12px 8px;border-bottom:1px solid ${COLORS.border};font-size:13px;color:${COLORS.muted};font-family:${MONO_STACK}">${fmt(b.ht)}</td>
+              <td align="right" style="padding:12px 8px;border-bottom:1px solid ${COLORS.border};font-size:14px;color:${COLORS.foreground};font-family:${MONO_STACK};font-weight:600">${fmt(b.ttc)}</td>
+            </tr>`;
+          })()
+        : "";
+
+    return partRows + laborRow;
+  })();
 
   const html = emailLayout(
     `
-    <h1 style="font-size:22px;font-weight:800;margin:0 0 8px 0;color:${COLORS.foreground};letter-spacing:-0.3px">Votre devis de réparation</h1>
-    <p style="margin:0 0 20px 0;color:${COLORS.muted};font-size:14px">Bonjour ${escapeHtml(firstName)}, voici notre proposition.</p>
+    <!-- Titre DEVIS + référence + date (mimique PDF) -->
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 24px 0">
+      <tr>
+        <td style="vertical-align:bottom">
+          <h1 style="font-size:30px;font-weight:800;margin:0;color:${COLORS.foreground};letter-spacing:-0.5px;line-height:1">DEVIS</h1>
+        </td>
+        <td align="right" style="vertical-align:bottom;font-family:${FONT_STACK}">
+          <div style="font-size:18px;font-weight:700;color:${COLORS.primary};font-family:${MONO_STACK};line-height:1.1">${escapeHtml(opts.number)}</div>
+          <div style="font-size:11px;color:${COLORS.subtle};margin-top:4px">Édité le ${escapeHtml(today)}</div>
+        </td>
+      </tr>
+    </table>
 
-    ${infoBox(`
-      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+    <!-- Client + Appareil (2 colonnes comme le PDF) -->
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 22px 0">
+      <tr>
+        <td style="width:50%;vertical-align:top;padding-right:12px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:${COLORS.subtle};margin-bottom:6px;font-family:${FONT_STACK}">Client</div>
+          <div style="font-size:14px;font-weight:600;color:${COLORS.foreground};font-family:${FONT_STACK}">${escapeHtml(opts.customerName)}</div>
+        </td>
+        <td style="width:50%;vertical-align:top;padding-left:12px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:${COLORS.subtle};margin-bottom:6px;font-family:${FONT_STACK}">Appareil</div>
+          <div style="font-size:14px;font-weight:600;color:${COLORS.foreground};font-family:${FONT_STACK}">${escapeHtml(opts.device)}</div>
+          <div style="font-size:12px;color:${COLORS.muted};margin-top:2px;font-family:${FONT_STACK}">${escapeHtml(opts.issueType)}</div>
+        </td>
+      </tr>
+    </table>
+
+    <!-- Tableau pièces + main d'œuvre, colonnes HT/TTC -->
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;margin:0 0 4px 0;font-family:${FONT_STACK}">
+      <thead>
         <tr>
-          <td style="vertical-align:top;width:50%">
-            <div style="font-size:11px;color:${COLORS.muted};text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:5px">Appareil</div>
-            <div style="font-size:15px;font-weight:700;color:${COLORS.foreground}">${escapeHtml(opts.device)}</div>
-          </td>
-          <td style="vertical-align:top;width:50%;padding-left:16px">
-            <div style="font-size:11px;color:${COLORS.muted};text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:5px">Intervention</div>
-            <div style="font-size:14px;color:${COLORS.foreground}">${escapeHtml(opts.issueType)}</div>
-          </td>
+          <th align="left" style="padding:10px 8px;border-bottom:2px solid ${COLORS.borderStrong};font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:${COLORS.subtle}">Désignation</th>
+          <th align="right" style="padding:10px 8px;border-bottom:2px solid ${COLORS.borderStrong};font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:${COLORS.subtle};width:90px">HT</th>
+          <th align="right" style="padding:10px 8px;border-bottom:2px solid ${COLORS.borderStrong};font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:${COLORS.subtle};width:100px">TTC</th>
         </tr>
-      </table>
-      <div style="margin-top:14px;padding-top:14px;border-top:1px solid ${COLORS.border}">
-        <div style="font-size:11px;color:${COLORS.muted};text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:6px">Référence dossier</div>
-        ${ref(opts.number)}
-      </div>
+      </thead>
+      <tbody>
+        ${rowsHtml}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td style="padding:10px 8px;border-top:2px solid ${COLORS.borderStrong};font-size:13px;font-weight:600;color:${COLORS.foreground}">Sous-total HT</td>
+          <td colspan="2" align="right" style="padding:10px 8px;border-top:2px solid ${COLORS.borderStrong};font-size:14px;font-weight:600;color:${COLORS.foreground};font-family:${MONO_STACK}">${fmt(totals.ht)}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 8px;font-size:12px;color:${COLORS.muted}">TVA 21 %</td>
+          <td colspan="2" align="right" style="padding:6px 8px;font-size:13px;color:${COLORS.muted};font-family:${MONO_STACK}">${fmt(totals.vat)}</td>
+        </tr>
+        <tr>
+          <td style="padding:14px 8px;border-top:2px solid ${COLORS.borderStrong};font-size:16px;font-weight:800;color:${COLORS.foreground}">TOTAL TTC</td>
+          <td colspan="2" align="right" style="padding:14px 8px;border-top:2px solid ${COLORS.borderStrong};font-size:24px;font-weight:900;color:${COLORS.primary};font-family:${MONO_STACK};letter-spacing:-0.5px">${fmt(totals.ttc)}</td>
+        </tr>
+      </tfoot>
+    </table>
+
+    ${
+      opts.message
+        ? `
+      ${sectionTitle("Message du technicien")}
+      ${infoBox(`<div style="white-space:pre-line;color:${COLORS.foreground};font-size:14px;line-height:1.6">${escapeHtml(opts.message)}</div>`)}
+    `
+        : ""
+    }
+
+    <!-- Conditions (mimique PDF) -->
+    ${infoBox(`
+      <div style="font-size:12px;font-weight:700;color:${COLORS.foreground};margin-bottom:8px">Conditions</div>
+      <ul style="margin:0;padding-left:18px;font-size:12px;color:${COLORS.muted};line-height:1.7">
+        <li>Devis valable 30 jours à compter de la date d'édition.</li>
+        <li>Garantie 6 mois sur les pièces et la main d'œuvre.</li>
+        <li>Aucun frais si l'appareil est jugé irréparable après diagnostic.</li>
+        <li>L'acceptation de ce devis vaut autorisation d'effectuer la réparation.</li>
+      </ul>
     `)}
 
-    ${partsHtml}
-    ${totalsTable}
-
-    ${opts.message ? infoBox(`<div style="font-size:13px;color:${COLORS.muted};text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:8px">Message du technicien</div><div style="white-space:pre-line;color:${COLORS.foreground};font-size:14px;line-height:1.6">${escapeHtml(opts.message)}</div>`) : ""}
-
-    <p style="margin:24px 0 8px 0">Pour <strong>valider</strong> ce devis, répondez à cet email ou cliquez sur le bouton ci-dessous depuis votre espace de suivi.</p>
-
-    <div style="margin:24px 0 8px 0">${btn(trackUrl, "Valider mon devis")}</div>
-
-    <p style="margin:20px 0 0 0;color:${COLORS.subtle};font-size:12px">Devis valable 30 jours. Diagnostic gratuit en cas de refus.</p>
+    <!-- CTA -->
+    <p style="margin:24px 0 8px 0;color:${COLORS.foreground}">Pour <strong>valider</strong> ce devis, répondez à cet email ou rendez-vous sur le suivi de votre dossier :</p>
+    <div style="margin:18px 0 4px 0">${btn(trackUrl, "Valider mon devis")}</div>
   `,
     { preheader: `Devis ${opts.number} : ${fmt(opts.totalTtc)} TTC pour ${opts.device}` },
   );
