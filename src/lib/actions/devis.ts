@@ -43,6 +43,40 @@ export async function createDevis(formData: FormData) {
       target = `/reparations/devis?error=${encodeURIComponent(msg)}`;
     } else {
       const data = parsed.data;
+
+      // Anti-duplication : protection contre double-clic / replay côté public.
+      // Même logique que createRepairAdmin : fenêtre 2 min, match sur (téléphone,
+      // marque, modèle, type de panne). Évite qu'un client impatient clique
+      // 3 fois et crée 3 demandes de devis identiques.
+      const phoneDigitsKey = data.customerPhone.replace(/\D/g, "").slice(-9);
+      let duplicateNumber: string | null = null;
+      if (phoneDigitsKey.length >= 6) {
+        const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
+        const recentDuplicate = await prisma.repair.findFirst({
+          where: {
+            createdAt: { gte: twoMinutesAgo },
+            brand: data.brand,
+            model: data.model,
+            issueType: data.issueType,
+            customerPhone: { contains: phoneDigitsKey },
+          },
+          select: { number: true },
+          orderBy: { createdAt: "desc" },
+        });
+        if (recentDuplicate) {
+          console.warn(
+            `[createDevis] doublon détecté pour ${data.customerPhone} (${data.brand} ${data.model}) — redirection vers ${recentDuplicate.number}`,
+          );
+          duplicateNumber = recentDuplicate.number;
+        }
+      }
+      if (duplicateNumber) {
+        // On évite tout le reste (create + photos + email + push) — la 1re
+        // soumission a déjà tout fait il y a moins de 2 min.
+        target = `/reparations/devis/confirmation?ref=${duplicateNumber}`;
+        // Fallthrough out of try — la redirection finale se fait après le catch.
+      } else {
+
       const number = await generateNextRepairNumber();
       // Si l'utilisateur est connecté, on rattache la réparation à son compte.
       const session = await auth();
@@ -125,6 +159,7 @@ export async function createDevis(formData: FormData) {
       revalidatePath("/admin/reparations");
       revalidatePath("/admin");
       target = `/reparations/devis/confirmation?ref=${number}`;
+      }
     }
   } catch (err) {
     console.error("[createDevis] erreur inattendue:", err);

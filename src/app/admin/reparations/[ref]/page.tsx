@@ -42,6 +42,7 @@ type Props = {
   searchParams: Promise<{
     quoteSent?: string;
     quoteError?: string;
+    duplicate?: string;
   }>;
 };
 
@@ -95,7 +96,7 @@ const CONTACT_ICON: Record<string, typeof Phone> = {
 
 export default async function AdminRepairDetailPage({ params, searchParams }: Props) {
   const { ref } = await params;
-  const { quoteSent, quoteError } = await searchParams;
+  const { quoteSent, quoteError, duplicate } = await searchParams;
   const repair = await prisma.repair.findUnique({
     where: { number: ref },
     include: {
@@ -115,6 +116,19 @@ export default async function AdminRepairDetailPage({ params, searchParams }: Pr
 
   return (
     <div className="space-y-5">
+      {/* Banner anti-doublon : la création de dossier a été interceptée car
+          un dossier quasi-identique existe déjà (créé < 2 min). */}
+      {duplicate === "1" && (
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 text-sm flex items-start gap-2 text-amber-400">
+          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+          <div>
+            <strong>Doublon détecté.</strong> Un dossier quasi-identique a été créé il y a moins de 2 minutes —
+            vous avez été redirigé vers l&apos;original pour éviter la duplication. Modifiez ici les
+            informations existantes plutôt que d&apos;en créer un nouveau.
+          </div>
+        </div>
+      )}
+
       {/* Banner retour de l'action "Envoyer le devis" */}
       {quoteSent === "1" && (
         <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 text-sm flex items-center gap-2 text-emerald-400">

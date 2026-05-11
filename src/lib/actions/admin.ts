@@ -309,6 +309,46 @@ export async function createRepairAdmin(formData: FormData) {
   }
   const data = parsed.data;
 
+  // -------------------------------------------------------------
+  // Anti-duplication : protection contre double-clic / replay
+  // -------------------------------------------------------------
+  // Symptôme observé : un admin clique 2 fois (impatience), le bouton submit
+  // est encore actif, le formulaire part 2 fois → 2 dossiers identiques avec
+  // 2 numéros différents. Aussi possible : recharger l'onglet / barcode scanner
+  // qui appuie Entrée plusieurs fois. Protection serveur : on cherche un
+  // dossier "presque identique" créé dans les dernières 2 minutes (même
+  // téléphone normalisé + marque + modèle + type de panne). Si trouvé,
+  // on redirige vers l'existant — pas de duplicate.
+  //
+  // 2 min = fenêtre courte pour ne pas bloquer un vrai 2e dossier légitime
+  // (ex : client qui ramène 2 fois le même appareil dans la même journée).
+  const phoneDigitsKey = data.customerPhone.replace(/\D/g, "").slice(-9);
+  if (phoneDigitsKey.length >= 6) {
+    const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
+    const recentDuplicate = await prisma.repair.findFirst({
+      where: {
+        createdAt: { gte: twoMinutesAgo },
+        brand: data.brand,
+        model: data.model,
+        issueType: data.issueType,
+        customerPhone: { contains: phoneDigitsKey },
+      },
+      select: { number: true, status: true },
+      orderBy: { createdAt: "desc" },
+    });
+    if (recentDuplicate) {
+      console.warn(
+        `[createRepairAdmin] dossier dupliqué détecté pour ${data.customerPhone} (${data.brand} ${data.model}) — redirection vers ${recentDuplicate.number}`,
+      );
+      revalidatePath("/admin/reparations");
+      revalidatePath("/admin/devis");
+      revalidatePath("/admin");
+      // Redirige vers la fiche du dossier existant — comme si l'admin avait
+      // cliqué une seule fois. Pas d'erreur, juste pas de duplicate.
+      redirect(`/admin/reparations/${recentDuplicate.number}?duplicate=1`);
+    }
+  }
+
   const number = await generateNextRepairNumber();
   // Résolution / création du client liée à la réparation.
   // Priorité 1 : client choisi explicitement via autocomplétion (clientId)

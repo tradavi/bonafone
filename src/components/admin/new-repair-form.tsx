@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Save, UserCheck, X, Search, FileText, Wrench } from "lucide-react";
+import { useFormStatus } from "react-dom";
+import { Save, UserCheck, X, Search, FileText, Wrench, Loader2 } from "lucide-react";
 import { createRepairAdmin } from "@/lib/actions/admin";
 
 type Mode = "repair" | "devis";
@@ -330,24 +331,43 @@ export function NewRepairForm({ mode = "repair" }: { mode?: Mode }) {
       </Section>
 
       <div className="flex justify-end">
-        <button
-          type="submit"
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-strong text-white rounded-lg font-semibold transition shadow-[0_0_20px_var(--primary-glow)]"
-        >
-          {isDevis ? (
-            <>
-              <FileText className="h-4 w-4" />
-              Enregistrer le devis
-            </>
-          ) : (
-            <>
-              <Wrench className="h-4 w-4" />
-              Créer & imprimer les tickets
-            </>
-          )}
-        </button>
+        <SubmitButton isDevis={isDevis} />
       </div>
     </form>
+  );
+}
+
+/**
+ * Bouton submit avec état "pending" géré par useFormStatus.
+ * Pendant la soumission, le bouton est désactivé + affiche un spinner.
+ * Critique pour éviter les doublons par double-clic — le bug le plus
+ * fréquent en formulaire admin (impatience + connexion lente).
+ */
+function SubmitButton({ isDevis }: { isDevis: boolean }) {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-strong disabled:bg-primary/60 disabled:cursor-wait text-white rounded-lg font-semibold transition shadow-[0_0_20px_var(--primary-glow)]"
+    >
+      {pending ? (
+        <>
+          <Loader2 className="h-4 w-4 animate-spin" />
+          {isDevis ? "Enregistrement…" : "Création…"}
+        </>
+      ) : isDevis ? (
+        <>
+          <FileText className="h-4 w-4" />
+          Enregistrer le devis
+        </>
+      ) : (
+        <>
+          <Wrench className="h-4 w-4" />
+          Créer & imprimer les tickets
+        </>
+      )}
+    </button>
   );
 }
 
