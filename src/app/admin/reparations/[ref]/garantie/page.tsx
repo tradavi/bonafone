@@ -14,16 +14,8 @@ type Props = {
 
 const SITE_URL = process.env.AUTH_URL ?? "http://localhost:3000";
 
-const DEVICE_LABEL: Record<string, string> = {
-  SMARTPHONE: "Smartphone",
-  TABLETTE: "Tablette",
-  ORDINATEUR_PORTABLE: "PC portable",
-  AUTRE: "Autre",
-};
-
-// Durée de garantie standard — alignée sur les conditions du devis
-// (voir prisma schema warrantyMonths sur Product et tplRepairQuote conditions).
-const WARRANTY_MONTHS = 6;
+// Durée de garantie standard : 1 an.
+const WARRANTY_MONTHS = 12;
 
 async function generateBarcodeSvg(text: string): Promise<string> {
   return bwipjs.toSVG({
@@ -167,7 +159,7 @@ export default async function GarantiePage({ params, searchParams }: Props) {
             >
               <div className="text-[11px] uppercase tracking-wider">Garantie valable</div>
               <div className="text-[15px] font-extrabold my-0.5">
-                {WARRANTY_MONTHS} mois
+                1 an
               </div>
               <div className="text-[12px]">
                 Du {formatDate(restitutionDate)}
@@ -184,12 +176,9 @@ export default async function GarantiePage({ params, searchParams }: Props) {
               {repair.customerEmail && <Row label="Email" value={repair.customerEmail} />}
             </div>
 
-            {/* Appareil */}
+            {/* Appareil — sans le type (smartphone/tablette/…), juste marque + modèle */}
             <div className="border-t border-dashed border-black mt-2 pt-2 space-y-1">
-              <Row
-                label="Appareil"
-                value={`${DEVICE_LABEL[repair.deviceType] ?? repair.deviceType} · ${repair.brand} ${repair.model}`}
-              />
+              <Row label="Appareil" value={`${repair.brand} ${repair.model}`} />
               {repair.imei && <Row label="IMEI/SN" value={repair.imei} />}
             </div>
 
@@ -243,9 +232,17 @@ export default async function GarantiePage({ params, searchParams }: Props) {
               </div>
             )}
 
-            {/* Date de restitution */}
+            {/* Date de restitution — phrase complete (label "RESTITUÉ LE" + date
+                bien decalee à droite pour respirer visuellement) */}
             <div className="border-t border-dashed border-black mt-2 pt-2 space-y-1">
-              <Row label="Restitué" value={formatDate(restitutionDate)} />
+              <div className="flex items-center gap-3">
+                <div className="text-[12px] font-bold uppercase tracking-wider">
+                  Restitué le
+                </div>
+                <div className="text-[13px] flex-1 text-right">
+                  {formatDate(restitutionDate)}
+                </div>
+              </div>
               {restitutionEvent?.comment && (
                 <div className="text-[11px] mt-1 italic">{restitutionEvent.comment}</div>
               )}
@@ -255,7 +252,7 @@ export default async function GarantiePage({ params, searchParams }: Props) {
             <div className="border-t border-dashed border-black mt-2 pt-2 text-[11px]">
               <div className="font-bold uppercase tracking-wider mb-1">Conditions</div>
               <ul className="space-y-0.5 list-none pl-0">
-                <li>• Garantie {WARRANTY_MONTHS} mois sur pièces et main d&apos;œuvre.</li>
+                <li>• Garantie 1 an sur pièces et main d&apos;œuvre.</li>
                 <li>• Couvre les défauts liés à l&apos;intervention listée ci-dessus.</li>
                 <li>• Exclus : casse, chute, oxydation post-réparation, usure normale.</li>
                 <li>• Présenter ce ticket pour faire valoir la garantie.</li>
