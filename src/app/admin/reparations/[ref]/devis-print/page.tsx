@@ -50,10 +50,11 @@ export default async function DevisPrintPage({ params }: Props) {
         </div>
 
         <div className="print-page max-w-[800px] mx-auto bg-white border border-zinc-200 rounded-lg shadow-sm p-10">
-          {/* Header — logo officiel (image PNG incluant wordmark + tagline) */}
-          <div className="flex items-start justify-between pb-6 border-b-2 border-[#ff2d3a] gap-4 flex-wrap">
-            <LogoFull className="h-16 w-auto" />
-            <div className="text-right text-xs text-zinc-600">
+          {/* Header — logo officiel (image PNG incluant wordmark + tagline)
+              + adresse a droite, alignes verticalement au centre */}
+          <div className="flex items-center justify-between pb-6 border-b-2 border-[#ff2d3a] gap-4 flex-wrap">
+            <LogoFull className="h-14 w-auto" />
+            <div className="text-right text-xs text-zinc-600 leading-relaxed">
               <div>{STORE.address}</div>
               <div>Tél : {STORE.phone}</div>
               <div>Email : {STORE.email}</div>
