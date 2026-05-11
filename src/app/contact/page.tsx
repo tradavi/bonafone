@@ -36,68 +36,48 @@ export default async function ContactPage({ searchParams }: Props) {
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl px-4 py-12 grid lg:grid-cols-3 gap-6">
-        {/* Colonne gauche : infos + carte */}
-        <div className="space-y-3">
-          <ContactCard icon={MapPin} title="Adresse">
-            <a href={store.gmaps} target="_blank" rel="noreferrer" className="hover:text-primary transition">
-              {store.address}
-            </a>
-          </ContactCard>
-          <ContactCard icon={Phone} title="Téléphone">
-            <a href={`tel:${store.phone}`} className="hover:text-primary transition">
-              {store.phone}
-            </a>
-          </ContactCard>
-          <ContactCard icon={Mail} title="Email">
-            <a href={`mailto:${store.email}`} className="hover:text-primary transition">
-              {store.email}
-            </a>
-          </ContactCard>
-          {whatsappDigits && (
-            <ContactCard icon={MessageCircle} title="WhatsApp">
-              <a
-                href={`https://wa.me/${whatsappDigits}`}
-                target="_blank"
-                rel="noreferrer"
-                className="hover:text-primary transition"
-              >
-                Discuter sur WhatsApp
+      <div className="mx-auto max-w-7xl px-4 py-12 space-y-6">
+        {/* Cartes infos + formulaire (sur deux colonnes) */}
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* Colonne gauche : infos */}
+          <div className="space-y-3">
+            <ContactCard icon={MapPin} title="Adresse">
+              <a href={store.gmaps} target="_blank" rel="noreferrer" className="hover:text-primary transition">
+                {store.address}
               </a>
             </ContactCard>
-          )}
-          <ContactCard icon={Clock} title="Horaires">
-            {store.hours}
-          </ContactCard>
-
-          {/* Carte Google Maps — embed sous la liste, ratio 4/3 confortable */}
-          <div className="bg-surface border border-border rounded-xl overflow-hidden">
-            <div className="aspect-[4/3] w-full relative">
-              <iframe
-                src={embedUrl}
-                title="Carte du magasin"
-                className="absolute inset-0 w-full h-full border-0"
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-                allowFullScreen
-              />
-            </div>
-            <a
-              href={store.gmaps}
-              target="_blank"
-              rel="noreferrer"
-              className="block px-4 py-3 text-xs text-foreground-muted hover:text-primary transition border-t border-border"
-            >
-              Itinéraire sur Google Maps →
-            </a>
+            <ContactCard icon={Phone} title="Téléphone">
+              <a href={`tel:${store.phone}`} className="hover:text-primary transition">
+                {store.phone}
+              </a>
+            </ContactCard>
+            <ContactCard icon={Mail} title="Email">
+              <a href={`mailto:${store.email}`} className="hover:text-primary transition">
+                {store.email}
+              </a>
+            </ContactCard>
+            {whatsappDigits && (
+              <ContactCard icon={MessageCircle} title="WhatsApp">
+                <a
+                  href={`https://wa.me/${whatsappDigits}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="hover:text-primary transition"
+                >
+                  Discuter sur WhatsApp
+                </a>
+              </ContactCard>
+            )}
+            <ContactCard icon={Clock} title="Horaires">
+              {store.hours}
+            </ContactCard>
           </div>
-        </div>
 
-        {/* Formulaire */}
-        <form
-          action={sendContactMessage}
-          className="lg:col-span-2 bg-surface border border-border rounded-2xl p-6 md:p-8 space-y-4 self-start"
-        >
+          {/* Formulaire */}
+          <form
+            action={sendContactMessage}
+            className="lg:col-span-2 bg-surface border border-border rounded-2xl p-6 md:p-8 space-y-4 self-start"
+          >
           <h2 className="text-xl font-extrabold mb-2 tracking-tight">Envoyer un message</h2>
           {sent && (
             <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg flex items-start gap-3">
@@ -153,7 +133,31 @@ export default async function ContactPage({ searchParams }: Props) {
             <Send className="h-4 w-4" />
             Envoyer le message
           </button>
-        </form>
+          </form>
+        </div>
+
+        {/* Carte Google Maps — pleine largeur sous le formulaire (= largeur du
+            contenu de la page, ce qui inclut les infos à gauche + form à droite) */}
+        <div className="bg-surface border border-border rounded-2xl overflow-hidden">
+          <div className="aspect-[21/9] w-full relative">
+            <iframe
+              src={embedUrl}
+              title="Carte du magasin"
+              className="absolute inset-0 w-full h-full border-0"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              allowFullScreen
+            />
+          </div>
+          <a
+            href={store.gmaps}
+            target="_blank"
+            rel="noreferrer"
+            className="block px-4 py-3 text-sm text-foreground-muted hover:text-primary transition border-t border-border text-center"
+          >
+            Itinéraire sur Google Maps →
+          </a>
+        </div>
       </div>
     </>
   );
