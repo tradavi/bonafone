@@ -1,5 +1,6 @@
 import { unstable_cache } from "next/cache";
 import { prisma } from "./prisma";
+import { isSyntheticEmail } from "./synthetic-email";
 
 /**
  * Tags de cache cross-request — invalider via revalidateTag() après mutation.
@@ -467,17 +468,21 @@ export async function searchClients(query: string, limit = 8): Promise<ClientSug
   const matches = users
     .map((u) => {
       const fullName = [u.firstName, u.lastName].filter(Boolean).join(" ").trim();
-      const haystack = [fullName, u.email ?? "", u.phone ?? ""].join(" ").toLowerCase();
+      // On exclut les emails synthétiques du haystack pour qu'ils ne polluent
+      // pas la recherche (l'admin ne devrait jamais les voir).
+      const realEmail = isSyntheticEmail(u.email) ? "" : u.email ?? "";
+      const haystack = [fullName, realEmail, u.phone ?? ""].join(" ").toLowerCase();
       const score = tokens.every((t) => haystack.includes(t)) ? haystack.length : -1;
-      return { u, fullName, score };
+      return { u, fullName, realEmail, score };
     })
     .filter((m) => m.score >= 0)
     .sort((a, b) => a.score - b.score)
     .slice(0, limit)
-    .map(({ u, fullName }) => ({
+    .map(({ u, fullName, realEmail }) => ({
       id: u.id,
-      fullName: fullName || (u.email ? u.email.split("@")[0] : "Client"),
-      email: u.email,
+      fullName: fullName || (realEmail ? realEmail.split("@")[0] : "Client"),
+      // On renvoie null à la place de l'email synthétique pour ne pas l'afficher
+      email: realEmail || null,
       phone: u.phone,
     }));
 

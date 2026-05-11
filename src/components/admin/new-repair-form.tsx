@@ -73,12 +73,34 @@ export function NewRepairForm() {
   const [linkedClient, setLinkedClient] = useState<ClientSuggestion | null>(null);
   const [suggestions, setSuggestions] = useState<ClientSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  // Champ qui a actuellement le focus — sert à afficher la dropdown au bon endroit
+  const [activeField, setActiveField] = useState<"name" | "email" | "phone" | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Autocomplétion : déclenchée à chaque frappe (>= 2 chars), debounce 200ms
+  // Autocomplétion : déclenchée à chaque frappe dans name/email/phone.
+  // Le backend cherche dans nom + email + téléphone simultanément (haystack).
+  // Debounce 200ms pour éviter les requêtes à chaque touche.
   useEffect(() => {
-    if (linkedClient) return; // déjà rattaché
-    if (name.trim().length < 2) {
+    if (linkedClient) return; // déjà rattaché → pas de recherche
+    // On prend la valeur la plus longue parmi name/email/phone comme query.
+    // Le téléphone : on enlève espaces/tirets pour le matching.
+    const candidates = [
+      name.trim(),
+      email.trim(),
+      phone.replace(/[\s\-.]/g, "").trim(),
+    ].filter((v) => v.length >= 2);
+    if (candidates.length === 0) {
+      setSuggestions([]);
+      return;
+    }
+    // On envoie celui qui vient d'être modifié (le plus récent = activeField).
+    // Sinon le plus long.
+    let q = "";
+    if (activeField === "name") q = name.trim();
+    else if (activeField === "email") q = email.trim();
+    else if (activeField === "phone") q = phone.trim();
+    else q = candidates.sort((a, b) => b.length - a.length)[0];
+    if (q.length < 2) {
       setSuggestions([]);
       return;
     }
@@ -86,7 +108,7 @@ export function NewRepairForm() {
     debounceRef.current = setTimeout(async () => {
       try {
         const res = await fetch(
-          `/api/admin/clients/search?q=${encodeURIComponent(name)}`,
+          `/api/admin/clients/search?q=${encodeURIComponent(q)}`,
         );
         if (!res.ok) return;
         const data = (await res.json()) as ClientSuggestion[];
@@ -98,7 +120,7 @@ export function NewRepairForm() {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [name, linkedClient]);
+  }, [name, email, phone, activeField, linkedClient]);
 
   function pickClient(c: ClientSuggestion) {
     setLinkedClient(c);
@@ -118,153 +140,140 @@ export function NewRepairForm() {
       {linkedClient && <input type="hidden" name="clientId" value={linkedClient.id} />}
 
       <Section title="Client">
-        {linkedClient ? (
-          <div className="flex items-center justify-between gap-3 p-4 bg-emerald-500/5 border border-emerald-500/30 rounded-xl">
+        {linkedClient && (
+          <div className="flex items-center justify-between gap-3 p-3 mb-3 bg-emerald-500/5 border border-emerald-500/30 rounded-xl">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="h-10 w-10 grid place-items-center rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shrink-0">
-                <UserCheck className="h-5 w-5" />
+              <div className="h-9 w-9 grid place-items-center rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shrink-0">
+                <UserCheck className="h-4 w-4" />
               </div>
-              <div className="min-w-0">
-                <div className="font-bold truncate">{linkedClient.fullName}</div>
-                <div className="text-xs text-foreground-muted truncate">
-                  {[linkedClient.email, linkedClient.phone].filter(Boolean).join(" · ") ||
-                    "Compte client existant"}
-                </div>
+              <div className="min-w-0 text-sm">
+                <span className="font-bold">Rattaché au compte</span>
+                <span className="text-foreground-muted"> · {linkedClient.fullName}</span>
               </div>
             </div>
             <button
               type="button"
               onClick={unlinkClient}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface-2 border border-border hover:border-primary rounded-lg text-xs font-semibold transition"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-surface-2 border border-border hover:border-primary rounded-lg text-xs font-semibold transition"
             >
-              <X className="h-3.5 w-3.5" />
+              <X className="h-3 w-3" />
               Détacher
             </button>
           </div>
-        ) : (
-          <div className="relative">
-            <Grid>
-              <div className="md:col-span-2 relative">
-                <label className="block">
-                  <span className="text-xs text-foreground-muted font-semibold mb-1.5 block">
-                    Nom complet <span className="text-primary">*</span>
-                    <span className="text-foreground-subtle font-normal ml-1.5">
-                      (recherche dans les comptes clients)
-                    </span>
-                  </span>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-foreground-muted" />
-                    <input
-                      name="customerName"
-                      required
-                      autoComplete="off"
-                      value={name}
-                      onChange={(e) => {
-                        setName(e.target.value);
-                        setShowSuggestions(true);
-                      }}
-                      onFocus={() => setShowSuggestions(true)}
-                      onBlur={() => {
-                        // léger délai pour permettre le click sur une suggestion
-                        setTimeout(() => setShowSuggestions(false), 150);
-                      }}
-                      placeholder="Tapez le nom du client…"
-                      className={`${inputCls} pl-9`}
-                    />
-                  </div>
-                </label>
+        )}
 
-                {showSuggestions && suggestions.length > 0 && (
-                  <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-20 bg-surface border border-border rounded-lg shadow-2xl overflow-hidden max-h-72 overflow-y-auto">
-                    <div className="px-3 py-2 text-[10px] uppercase tracking-wider text-foreground-muted bg-surface-2 border-b border-border font-semibold">
-                      {suggestions.length} client{suggestions.length > 1 ? "s" : ""} trouvé
-                      {suggestions.length > 1 ? "s" : ""}
-                    </div>
-                    {suggestions.map((c) => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        onMouseDown={(e) => {
-                          // mouseDown pour devancer le onBlur
-                          e.preventDefault();
-                          pickClient(c);
-                        }}
-                        className="w-full text-left px-3 py-2 hover:bg-surface-2 border-b border-border last:border-b-0 transition flex items-center gap-3"
-                      >
-                        <div className="h-8 w-8 grid place-items-center rounded-lg bg-primary/10 text-primary border border-primary/20 shrink-0">
-                          <UserCheck className="h-4 w-4" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="font-semibold truncate">{c.fullName}</div>
-                          <div className="text-xs text-foreground-muted truncate">
-                            {[c.email, c.phone].filter(Boolean).join(" · ") || "—"}
-                          </div>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
+        <Grid>
+          {/* Nom — avec dropdown autocomplétion */}
+          <div className="md:col-span-2 relative">
+            <label className="block">
+              <span className="text-xs text-foreground-muted font-semibold mb-1.5 block">
+                Nom complet <span className="text-primary">*</span>
+                <span className="text-foreground-subtle font-normal ml-1.5">
+                  (recherche : nom, téléphone ou email)
+                </span>
+              </span>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-foreground-muted pointer-events-none" />
+                <input
+                  name="customerName"
+                  required
+                  autoComplete="off"
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    setActiveField("name");
+                    setShowSuggestions(true);
+                  }}
+                  onFocus={() => {
+                    setActiveField("name");
+                    setShowSuggestions(true);
+                  }}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                  placeholder="Tapez le nom…"
+                  className={`${inputCls} pl-9`}
+                />
               </div>
+            </label>
 
-              <Field
-                label="Téléphone"
+            {showSuggestions && activeField === "name" && suggestions.length > 0 && (
+              <SuggestionsList suggestions={suggestions} onPick={pickClient} />
+            )}
+          </div>
+
+          {/* Téléphone — avec dropdown */}
+          <div className="relative">
+            <label className="block">
+              <span className="text-xs text-foreground-muted font-semibold mb-1.5 block">
+                Téléphone <span className="text-primary">*</span>
+              </span>
+              <input
                 name="customerPhone"
                 type="tel"
                 required
+                autoComplete="off"
                 value={phone}
-                onChange={setPhone}
+                onChange={(e) => {
+                  setPhone(e.target.value);
+                  setActiveField("phone");
+                  setShowSuggestions(true);
+                }}
+                onFocus={() => {
+                  setActiveField("phone");
+                  setShowSuggestions(true);
+                }}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                placeholder="+32 477 …"
+                className={inputCls}
               />
-              <Field
-                label="Email (optionnel)"
+            </label>
+            {showSuggestions && activeField === "phone" && suggestions.length > 0 && (
+              <SuggestionsList suggestions={suggestions} onPick={pickClient} />
+            )}
+          </div>
+
+          {/* Email — avec dropdown */}
+          <div className="relative">
+            <label className="block">
+              <span className="text-xs text-foreground-muted font-semibold mb-1.5 block">
+                Email (optionnel)
+              </span>
+              <input
                 name="customerEmail"
                 type="email"
+                autoComplete="off"
                 value={email}
-                onChange={setEmail}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setActiveField("email");
+                  setShowSuggestions(true);
+                }}
+                onFocus={() => {
+                  setActiveField("email");
+                  setShowSuggestions(true);
+                }}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                placeholder="client@exemple.com"
+                className={inputCls}
               />
-              <SelectStatic label="Mode de contact" name="contactPref">
-                {CONTACT_PREFS.map((c) => (
-                  <option key={c.value} value={c.value}>
-                    {c.label}
-                  </option>
-                ))}
-              </SelectStatic>
-            </Grid>
-            <p className="text-xs text-foreground-muted mt-2">
-              💡 Si vous tapez un nom déjà connu, sélectionnez-le pour rattacher le dossier au compte.
-              L&apos;email reste optionnel — le suivi se fera par téléphone si manquant.
-            </p>
+            </label>
+            {showSuggestions && activeField === "email" && suggestions.length > 0 && (
+              <SuggestionsList suggestions={suggestions} onPick={pickClient} />
+            )}
           </div>
-        )}
-      </Section>
 
-      {linkedClient && (
-        <Section title="Coordonnées (modifiables)">
-          <Grid>
-            <Field
-              label="Téléphone"
-              name="customerPhone"
-              type="tel"
-              required
-              value={phone}
-              onChange={setPhone}
-            />
-            <Field
-              label="Email (optionnel)"
-              name="customerEmail"
-              type="email"
-              value={email}
-              onChange={setEmail}
-            />
-            <SelectStatic label="Mode de contact" name="contactPref">
-              {CONTACT_PREFS.map((c) => (
-                <option key={c.value} value={c.value}>
-                  {c.label}
-                </option>
-              ))}
-            </SelectStatic>
-          </Grid>
-        </Section>
-      )}
+          <SelectStatic label="Mode de contact" name="contactPref">
+            {CONTACT_PREFS.map((c) => (
+              <option key={c.value} value={c.value}>
+                {c.label}
+              </option>
+            ))}
+          </SelectStatic>
+        </Grid>
+        <p className="text-xs text-foreground-muted mt-3">
+          💡 Tapez dans n&apos;importe quel champ — si le client existe déjà, sélectionnez-le.
+          Sinon, il sera <strong>créé automatiquement</strong> à la soumission du formulaire.
+        </p>
+      </Section>
 
       <Section title="Appareil">
         <Grid>
@@ -343,7 +352,47 @@ function Grid({ children }: { children: React.ReactNode }) {
   return <div className="grid md:grid-cols-2 gap-3">{children}</div>;
 }
 
-// Champ contrôlé (lié à React state)
+// Dropdown de suggestions de clients, affichée sous un champ d'input
+function SuggestionsList({
+  suggestions,
+  onPick,
+}: {
+  suggestions: ClientSuggestion[];
+  onPick: (c: ClientSuggestion) => void;
+}) {
+  return (
+    <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-20 bg-surface border border-border rounded-lg shadow-2xl overflow-hidden max-h-72 overflow-y-auto">
+      <div className="px-3 py-2 text-[10px] uppercase tracking-wider text-foreground-muted bg-surface-2 border-b border-border font-semibold">
+        {suggestions.length} client{suggestions.length > 1 ? "s" : ""} trouvé
+        {suggestions.length > 1 ? "s" : ""}
+      </div>
+      {suggestions.map((c) => (
+        <button
+          key={c.id}
+          type="button"
+          onMouseDown={(e) => {
+            // mouseDown devance le onBlur pour que le pick aboutisse
+            e.preventDefault();
+            onPick(c);
+          }}
+          className="w-full text-left px-3 py-2 hover:bg-surface-2 border-b border-border last:border-b-0 transition flex items-center gap-3"
+        >
+          <div className="h-8 w-8 grid place-items-center rounded-lg bg-primary/10 text-primary border border-primary/20 shrink-0">
+            <UserCheck className="h-4 w-4" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="font-semibold truncate">{c.fullName}</div>
+            <div className="text-xs text-foreground-muted truncate">
+              {[c.email, c.phone].filter(Boolean).join(" · ") || "—"}
+            </div>
+          </div>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// Champ contrôlé (lié à React state) — conservé pour usages futurs
 function Field({
   label,
   name,

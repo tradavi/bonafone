@@ -15,6 +15,7 @@ import {
 import { getAdminClientById } from "@/lib/queries";
 import { formatPrice } from "@/lib/utils";
 import { ORDER_STATUS_STYLES, ORDER_STATUS_LABEL } from "@/lib/order-status";
+import { displayEmail } from "@/lib/synthetic-email";
 
 const REPAIR_STATUS_STYLES: Record<string, string> = {
   RECU: "bg-blue-500/10 text-blue-400 border-blue-500/30",
@@ -85,13 +86,20 @@ export default async function AdminClientDetailPage({ params }: Props) {
         <div className="flex-1 min-w-0">
           <h1 className="text-2xl font-extrabold tracking-tight">{fullName}</h1>
           <div className="flex items-center gap-3 text-sm text-foreground-muted flex-wrap mt-1">
-            <a
-              href={`mailto:${client.email}`}
-              className="inline-flex items-center gap-1.5 hover:text-primary transition"
-            >
-              <Mail className="h-3.5 w-3.5" />
-              {client.email}
-            </a>
+            {displayEmail(client.email) ? (
+              <a
+                href={`mailto:${displayEmail(client.email)}`}
+                className="inline-flex items-center gap-1.5 hover:text-primary transition"
+              >
+                <Mail className="h-3.5 w-3.5" />
+                {displayEmail(client.email)}
+              </a>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 italic text-foreground-subtle">
+                <Mail className="h-3.5 w-3.5" />
+                Pas d&apos;email
+              </span>
+            )}
             {client.phone && (
               <a
                 href={`tel:${client.phone}`}

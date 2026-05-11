@@ -291,8 +291,11 @@ export async function createRepairAdmin(formData: FormData) {
   const data = parsed.data;
 
   const number = await generateNextRepairNumber();
-  // Priorité 1 : client sélectionné via autocomplétion
-  // Priorité 2 : fallback email match
+  // Résolution / création du client liée à la réparation.
+  // Priorité 1 : client choisi explicitement via autocomplétion (clientId)
+  // Priorité 2 : match par email
+  // Priorité 3 : match par téléphone (9 derniers chiffres — robuste aux formats)
+  // Priorité 4 : création d'un nouveau compte CLIENT à partir des coordonnées
   let userId: string | null = null;
   if (data.clientId) {
     const exists = await prisma.user.findUnique({
@@ -307,6 +310,48 @@ export async function createRepairAdmin(formData: FormData) {
       select: { id: true },
     });
     userId = existingUser?.id ?? null;
+  }
+  if (!userId) {
+    // Match par téléphone : on compare les 9 derniers chiffres pour ignorer
+    // les variations de format (+32 vs 0032 vs 0 prefix, espaces, tirets).
+    const phoneDigits = data.customerPhone.replace(/\D/g, "");
+    if (phoneDigits.length >= 6) {
+      const tail = phoneDigits.slice(-9);
+      const byPhone = await prisma.user.findFirst({
+        where: { phone: { contains: tail } },
+        select: { id: true },
+      });
+      userId = byPhone?.id ?? null;
+    }
+  }
+  if (!userId) {
+    // Aucun match — création d'un nouveau client.
+    // Email synthétique si l'admin n'en a pas fourni (sera remplaçable
+    // plus tard via la fiche client).
+    const phoneDigits = data.customerPhone.replace(/\D/g, "");
+    const tokens = data.customerName.trim().split(/\s+/);
+    const firstName = tokens[0] ?? data.customerName;
+    const lastName = tokens.slice(1).join(" ") || null;
+    const email = data.customerEmail
+      ? data.customerEmail.toLowerCase()
+      : `tel-${phoneDigits}@no-email.bonafone.local`;
+    try {
+      const newClient = await prisma.user.create({
+        data: {
+          email,
+          firstName,
+          lastName,
+          phone: data.customerPhone,
+          role: "CLIENT",
+        },
+      });
+      userId = newClient.id;
+      console.log(`👤 Nouveau client auto-créé : ${firstName} ${lastName ?? ""} (${email})`);
+    } catch (err) {
+      // Conflit d'email (course condition rare) → on continue sans userId,
+      // la réparation reste valide avec les coordonnées dénormalisées.
+      console.warn("[createRepairAdmin] échec création client auto:", err);
+    }
   }
 
   const repair = await prisma.repair.create({

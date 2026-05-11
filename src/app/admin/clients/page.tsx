@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Search, ArrowRight, Mail, Phone, Users } from "lucide-react";
 import { getAdminAllClients } from "@/lib/queries";
 import { formatPrice } from "@/lib/utils";
+import { displayEmail } from "@/lib/synthetic-email";
 
 export const metadata = { title: "Clients" };
 export const dynamic = "force-dynamic";
@@ -137,10 +138,17 @@ export default async function AdminClientsPage({ searchParams }: Props) {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-xs">
-                      <div className="flex items-center gap-1.5 text-foreground-muted">
-                        <Mail className="h-3 w-3" />
-                        {u.email}
-                      </div>
+                      {displayEmail(u.email) ? (
+                        <div className="flex items-center gap-1.5 text-foreground-muted">
+                          <Mail className="h-3 w-3" />
+                          {displayEmail(u.email)}
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 text-foreground-subtle italic">
+                          <Mail className="h-3 w-3" />
+                          Pas d&apos;email
+                        </div>
+                      )}
                       {u.phone && (
                         <div className="flex items-center gap-1.5 text-foreground-muted mt-0.5">
                           <Phone className="h-3 w-3" />

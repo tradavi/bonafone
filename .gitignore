@@ -52,3 +52,6 @@ next-env.d.ts
 # Claude Code (agent SDK) — settings locaux, hors repo
 .claude/
 sec.png
+
+.vercel
+.env*.local
