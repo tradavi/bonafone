@@ -186,7 +186,7 @@ export default async function AdminReclamationsPage({ searchParams }: Props) {
                 </div>
                 <div className="flex items-center gap-3 flex-wrap">
                   <div className="text-xs text-foreground-muted">
-                    {r.createdAt.toLocaleString("fr-FR")}
+                    {r.createdAt.toLocaleString("fr-FR", { timeZone: "Europe/Brussels" })}
                   </div>
                   {/* Bouton archiver/désarchiver — action 1 clic, ne touche pas
                       aux autres champs (notes internes, assignation) */}
@@ -286,7 +286,7 @@ export default async function AdminReclamationsPage({ searchParams }: Props) {
                           </span>
                           <span>·</span>
                           <Clock className="h-3 w-3" />
-                          {new Date(h.at).toLocaleString("fr-FR")}
+                          {new Date(h.at).toLocaleString("fr-FR", { timeZone: "Europe/Brussels" })}
                         </div>
                         <p className="whitespace-pre-line">{h.message}</p>
                       </li>

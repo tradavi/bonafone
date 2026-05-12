@@ -949,8 +949,34 @@ export async function updateClientAdmin(formData: FormData) {
     },
   });
 
+  // Sync : Repair.customerEmail est dénormalisé (stocké séparément de
+  // User.email). Sans ça, ajouter un email à un client n'apparaitrait pas
+  // sur les réparations existantes (notamment celles déjà archivées).
+  // On met à jour seulement quand un nouvel email est fourni — si l'admin
+  // laisse le champ vide on ne touche pas aux emails des réparations.
+  if (newEmail) {
+    await prisma.repair.updateMany({
+      where: { userId: data.id },
+      data: { customerEmail: newEmail },
+    });
+    // Pareil pour les commandes (denormalize guestEmail aussi pour cohérence)
+    await prisma.reclamation.updateMany({
+      where: { userId: data.id, email: { not: newEmail } },
+      data: { email: newEmail },
+    });
+  }
+  // Sync du téléphone également si fourni
+  if (data.phone) {
+    await prisma.repair.updateMany({
+      where: { userId: data.id },
+      data: { customerPhone: data.phone },
+    });
+  }
+
   revalidatePath("/admin/clients");
   revalidatePath(`/admin/clients/${data.id}`);
+  revalidatePath("/admin/reparations");
+  revalidatePath("/admin/devis");
   redirect(`/admin/clients/${data.id}?saved=1`);
 }
 

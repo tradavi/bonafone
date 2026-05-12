@@ -150,7 +150,7 @@ export default async function AdminClientDetailPage({ params, searchParams }: Pr
             )}
             <span className="inline-flex items-center gap-1.5">
               <Calendar className="h-3.5 w-3.5" />
-              Inscrit le {client.createdAt.toLocaleDateString("fr-FR")}
+              Inscrit le {client.createdAt.toLocaleDateString("fr-FR", { timeZone: "Europe/Brussels" })}
             </span>
           </div>
         </div>
@@ -245,7 +245,7 @@ export default async function AdminClientDetailPage({ params, searchParams }: Pr
                         <div className="min-w-0">
                           <div className="font-mono text-xs text-primary">{o.number}</div>
                           <div className="text-xs text-foreground-muted">
-                            {o.createdAt.toLocaleDateString("fr-FR")} · {itemsCount} article
+                            {o.createdAt.toLocaleDateString("fr-FR", { timeZone: "Europe/Brussels" })} · {itemsCount} article
                             {itemsCount > 1 ? "s" : ""}
                           </div>
                         </div>
@@ -337,7 +337,7 @@ export default async function AdminClientDetailPage({ params, searchParams }: Pr
                         </Link>
                       )}
                       <span className="text-xs text-foreground-muted ml-auto shrink-0">
-                        {rv.createdAt.toLocaleDateString("fr-FR")}
+                        {rv.createdAt.toLocaleDateString("fr-FR", { timeZone: "Europe/Brussels" })}
                       </span>
                     </div>
                     {rv.title && <div className="font-semibold text-sm">{rv.title}</div>}

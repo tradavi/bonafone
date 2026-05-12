@@ -377,6 +377,7 @@ export function tplRepairQuote(opts: {
     day: "numeric",
     month: "long",
     year: "numeric",
+    timeZone: "Europe/Brussels",
   });
 
   // Lignes du tableau (pièces + main d'œuvre éventuelle).

@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import bwipjs from "bwip-js/node";
 import { getRepairByNumber } from "@/lib/queries";
-import { STORE } from "@/lib/utils";
+import { STORE, formatDateTime } from "@/lib/utils";
 import { AutoPrint, PrintButtons } from "@/components/admin/auto-print";
 
 export const metadata = { title: "Tickets" };
@@ -13,13 +13,6 @@ type Props = {
 };
 
 const SITE_URL = process.env.AUTH_URL ?? "http://localhost:3000";
-
-const DEVICE_LABEL: Record<string, string> = {
-  SMARTPHONE: "Smartphone",
-  TABLETTE: "Tablette",
-  ORDINATEUR_PORTABLE: "PC portable",
-  AUTRE: "Autre",
-};
 
 async function generateBarcodeSvg(text: string): Promise<string> {
   // Code 128 — universel pour scanners de magasin.
@@ -44,13 +37,8 @@ export default async function TicketsPage({ params, searchParams }: Props) {
   const barcode = await generateBarcodeSvg(repair.number);
 
   const trackUrl = `${SITE_URL}/reparations/suivi?ref=${repair.number}`;
-  const dropDate = (repair.depositedAt ?? repair.createdAt).toLocaleString("fr-FR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  // Fuseau Bruxelles forcé (Vercel tourne en UTC) — sinon décalage 1-2h.
+  const dropDate = formatDateTime(repair.depositedAt ?? repair.createdAt);
 
   return (
     <>
@@ -176,7 +164,7 @@ function Ticket({
           className="inline-block px-2 py-0.5 border border-black text-[12px] font-bold uppercase tracking-wider"
           style={{ borderRadius: 0 }}
         >
-          {isClient ? "Reçu client" : "Reste avec l'appareil"}
+          {isClient ? "Reçu client" : "Ticket atelier"}
         </div>
       </div>
 
@@ -194,10 +182,8 @@ function Ticket({
       </div>
 
       <div className="border-t border-dashed border-black mt-2 pt-2 space-y-1">
-        <Row
-          label="Appareil"
-          value={`${DEVICE_LABEL[repair.deviceType] ?? repair.deviceType} · ${repair.brand} ${repair.model}`}
-        />
+        <Row label="Marque" value={repair.brand} />
+        <Row label="Model" value={repair.model} />
         {repair.imei && <Row label="IMEI/SN" value={repair.imei} />}
         <Row label="Panne" value={repair.issueType} />
       </div>

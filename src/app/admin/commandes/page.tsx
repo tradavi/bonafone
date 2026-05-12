@@ -153,7 +153,7 @@ export default async function AdminCommandesPage({ searchParams }: Props) {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-foreground-muted text-xs">
-                      {o.createdAt.toLocaleDateString("fr-FR")}
+                      {o.createdAt.toLocaleDateString("fr-FR", { timeZone: "Europe/Brussels" })}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <Link

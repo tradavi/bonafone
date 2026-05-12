@@ -120,6 +120,7 @@ export default async function MesAvisPage({ searchParams }: Props) {
                     day: "numeric",
                     month: "long",
                     year: "numeric",
+                    timeZone: "Europe/Brussels",
                   })}
                 </div>
               </div>

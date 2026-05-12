@@ -77,6 +77,7 @@ export default async function CommandesPage() {
                       day: "numeric",
                       month: "short",
                       year: "numeric",
+                      timeZone: "Europe/Brussels",
                     })}
                     {" · "}
                     {order.items

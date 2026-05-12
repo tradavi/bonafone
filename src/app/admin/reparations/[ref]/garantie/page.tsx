@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import bwipjs from "bwip-js/node";
 import { prisma } from "@/lib/prisma";
-import { STORE, formatPrice, priceBreakdown } from "@/lib/utils";
+import { STORE, formatPrice, priceBreakdown, TZ } from "@/lib/utils";
 import { AutoPrint, PrintButtons } from "@/components/admin/auto-print";
 
 export const metadata = { title: "Garantie" };
@@ -31,10 +31,12 @@ async function generateBarcodeSvg(text: string): Promise<string> {
 
 function formatDate(d: Date | null | undefined): string {
   if (!d) return "—";
+  // Fuseau Bruxelles forcé — Vercel tourne en UTC.
   return d.toLocaleDateString("fr-FR", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
+    timeZone: TZ,
   });
 }
 

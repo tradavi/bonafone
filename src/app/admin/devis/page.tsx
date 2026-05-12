@@ -146,7 +146,7 @@ export default async function AdminDevisPage({ searchParams }: Props) {
                       )}
                     </td>
                     <td className="px-4 py-3 text-xs">
-                      <div>{r.createdAt.toLocaleDateString("fr-FR")}</div>
+                      <div>{r.createdAt.toLocaleDateString("fr-FR", { timeZone: "Europe/Brussels" })}</div>
                       <div
                         className={`mt-0.5 ${
                           age >= 3 ? "text-primary font-semibold" : "text-foreground-muted"

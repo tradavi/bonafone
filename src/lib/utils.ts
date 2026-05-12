@@ -49,12 +49,46 @@ export function formatPriceHtTtc(ttc: number): string {
   return `HT ${formatPrice(ht)} · TTC ${formatPrice(ttc)}`;
 }
 
+// =====================================================
+// FORMATAGE DATE/HEURE — fuseau Bruxelles
+// =====================================================
+// Vercel exécute les fonctions serverless en UTC. Sans `timeZone` explicite,
+// `toLocaleString` rend les dates en UTC (décalage 1-2h avec l'heure locale
+// belge selon DST). On force `Europe/Brussels` partout via les helpers ci-
+// dessous, à utiliser de préférence à .toLocaleString brut.
+export const TZ = "Europe/Brussels";
+
 export function formatDate(date: Date | string) {
   const d = typeof date === "string" ? new Date(date) : date;
   return new Intl.DateTimeFormat("fr-FR", {
     day: "2-digit",
     month: "long",
     year: "numeric",
+    timeZone: TZ,
+  }).format(d);
+}
+
+/** Date courte JJ/MM/AAAA — utile pour les tickets et tableaux. */
+export function formatDateShort(date: Date | string) {
+  const d = typeof date === "string" ? new Date(date) : date;
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: TZ,
+  }).format(d);
+}
+
+/** Date + heure JJ/MM/AAAA HH:mm — fiche réparation, tickets, etc. */
+export function formatDateTime(date: Date | string) {
+  const d = typeof date === "string" ? new Date(date) : date;
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: TZ,
   }).format(d);
 }
 

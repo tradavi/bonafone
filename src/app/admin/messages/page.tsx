@@ -87,7 +87,7 @@ export default async function AdminMessagesPage() {
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="text-xs text-foreground-muted">
-                    {m.createdAt.toLocaleString("fr-FR")}
+                    {m.createdAt.toLocaleString("fr-FR", { timeZone: "Europe/Brussels" })}
                   </span>
                   <form action={deleteContactMessage}>
                     <input type="hidden" name="id" value={m.id} />
@@ -133,7 +133,7 @@ export default async function AdminMessagesPage() {
                           </span>
                           <span>·</span>
                           <Clock className="h-3 w-3" />
-                          {new Date(h.at).toLocaleString("fr-FR")}
+                          {new Date(h.at).toLocaleString("fr-FR", { timeZone: "Europe/Brussels" })}
                         </div>
                         <p className="whitespace-pre-line">{h.message}</p>
                       </li>

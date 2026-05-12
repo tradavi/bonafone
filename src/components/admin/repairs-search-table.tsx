@@ -136,7 +136,7 @@ export function RepairsSearchTable({ items }: { items: RepairRow[] }) {
                 </td>
                 <td className="px-4 py-3 text-foreground-muted text-xs">
                   {r.depositedAtIso
-                    ? new Date(r.depositedAtIso).toLocaleDateString("fr-FR")
+                    ? new Date(r.depositedAtIso).toLocaleDateString("fr-FR", { timeZone: "Europe/Brussels" })
                     : "—"}
                 </td>
                 <td className="px-4 py-3 text-right">

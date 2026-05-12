@@ -129,6 +129,7 @@ export async function Testimonials() {
                         day: "numeric",
                         month: "short",
                         year: "numeric",
+                        timeZone: "Europe/Brussels",
                       })}
                     </time>
                   </div>

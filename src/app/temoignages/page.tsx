@@ -145,6 +145,7 @@ export default async function TemoignagesPage({ searchParams }: Props) {
                         day: "numeric",
                         month: "short",
                         year: "numeric",
+                        timeZone: "Europe/Brussels",
                       })}
                     </time>
                   </div>

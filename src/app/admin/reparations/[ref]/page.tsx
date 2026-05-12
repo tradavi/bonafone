@@ -23,7 +23,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { formatPrice, priceBreakdown, VAT_RATE } from "@/lib/utils";
+import { formatPrice, priceBreakdown, VAT_RATE, formatDate, formatDateTime } from "@/lib/utils";
 import {
   updateRepairStatus,
   updateRepairCost,
@@ -179,12 +179,7 @@ export default async function AdminRepairDetailPage({ params, searchParams }: Pr
                 {repair.brand} {repair.model}
               </h1>
               <div className="text-sm text-foreground-muted mt-1">
-                {repair.issueType} · Reçu le{" "}
-                {repair.createdAt.toLocaleDateString("fr-FR", {
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric",
-                })}
+                {repair.issueType} · Reçu le {formatDate(repair.createdAt)}
               </div>
             </div>
           </div>
@@ -281,14 +276,14 @@ export default async function AdminRepairDetailPage({ params, searchParams }: Pr
               {repair.preferredDropAt && (
                 <Row
                   label="Dépôt souhaité"
-                  value={repair.preferredDropAt.toLocaleString("fr-FR")}
+                  value={formatDateTime(repair.preferredDropAt)}
                   icon={Calendar}
                 />
               )}
               {repair.estimatedReadyAt && (
                 <Row
                   label="Disponible le"
-                  value={repair.estimatedReadyAt.toLocaleString("fr-FR")}
+                  value={formatDateTime(repair.estimatedReadyAt)}
                   icon={Calendar}
                 />
               )}
@@ -778,7 +773,7 @@ export default async function AdminRepairDetailPage({ params, searchParams }: Pr
                         </div>
                       )}
                       <time className="text-[10px] text-foreground-subtle mt-1 block">
-                        {event.createdAt.toLocaleString("fr-FR")}
+                        {formatDateTime(event.createdAt)}
                       </time>
                     </div>
                   </li>

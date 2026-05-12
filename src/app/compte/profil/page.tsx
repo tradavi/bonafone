@@ -195,7 +195,7 @@ export default async function ProfilPage({ searchParams }: Props) {
       </div>
 
       <div className="text-xs text-foreground-muted text-right">
-        Compte créé le {user.createdAt.toLocaleDateString("fr-FR")} ·{" "}
+        Compte créé le {user.createdAt.toLocaleDateString("fr-FR", { timeZone: "Europe/Brussels" })} ·{" "}
         {isAdmin ? "Administrateur" : user.role === "TECHNICIEN" ? "Technicien" : "Client"}
       </div>
     </div>

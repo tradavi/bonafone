@@ -114,7 +114,7 @@ export default async function SuiviPage({ searchParams }: Props) {
                     {repair.brand} {repair.model} · {repair.issueType}
                   </div>
                   <div className="text-sm text-foreground-muted">
-                    Reçu le {repair.createdAt.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+                    Reçu le {repair.createdAt.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Brussels" })}
                   </div>
                 </div>
                 <span

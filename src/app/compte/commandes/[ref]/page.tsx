@@ -71,6 +71,7 @@ export default async function OrderDetailPage({ params }: Props) {
                 day: "numeric",
                 month: "long",
                 year: "numeric",
+                timeZone: "Europe/Brussels",
               })}
             </div>
           </div>

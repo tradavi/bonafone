@@ -110,6 +110,7 @@ export default async function MesReparationsPage() {
                     day: "numeric",
                     month: "short",
                     year: "numeric",
+                    timeZone: "Europe/Brussels",
                   })}
                   {r.estimatedCost && (
                     <>

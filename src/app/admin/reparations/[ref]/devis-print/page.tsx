@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { formatPrice, priceBreakdown, VAT_RATE, STORE } from "@/lib/utils";
+import { formatPrice, priceBreakdown, VAT_RATE, STORE, formatDate } from "@/lib/utils";
 import { LogoImage } from "@/components/ui/logo";
 import { PrintButton } from "./print-button";
 
@@ -26,11 +26,8 @@ export default async function DevisPrintPage({ params }: Props) {
   const totalTtc = repair.estimatedCost ?? 0;
   const laborTtc = Math.max(0, totalTtc - partsTotalTtc);
   const totals = priceBreakdown(totalTtc);
-  const today = new Date().toLocaleDateString("fr-FR", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+  // Date d'édition du devis — fuseau Bruxelles forcé (Vercel tourne en UTC).
+  const today = formatDate(new Date());
 
   return (
     <>

@@ -90,6 +90,7 @@ export default async function MesDevisPage() {
                     day: "numeric",
                     month: "short",
                     year: "numeric",
+                    timeZone: "Europe/Brussels",
                   })}
                   {d.estimatedCost != null && (
                     <>

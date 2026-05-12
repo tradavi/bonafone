@@ -84,7 +84,7 @@ export default async function AdminOrderDetailPage({ params }: Props) {
               {formatPrice(order.total)}
             </h1>
             <div className="text-sm text-foreground-muted mt-1">
-              {order.createdAt.toLocaleString("fr-FR")} · {order.paymentMethod}
+              {order.createdAt.toLocaleString("fr-FR", { timeZone: "Europe/Brussels" })} · {order.paymentMethod}
             </div>
           </div>
           <span

@@ -175,7 +175,7 @@ export default async function AdminClientsPage({ searchParams }: Props) {
                       {formatPrice(u.totalSpent)}
                     </td>
                     <td className="px-4 py-3 text-foreground-muted text-xs">
-                      {u.createdAt.toLocaleDateString("fr-FR")}
+                      {u.createdAt.toLocaleDateString("fr-FR", { timeZone: "Europe/Brussels" })}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <Link

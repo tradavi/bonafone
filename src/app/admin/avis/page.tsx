@@ -132,7 +132,7 @@ export default async function AdminReviewsPage({ searchParams }: Props) {
                     />
                   ))}
                   <span className="text-xs text-foreground-muted">
-                    {r.createdAt.toLocaleDateString("fr-FR")}
+                    {r.createdAt.toLocaleDateString("fr-FR", { timeZone: "Europe/Brussels" })}
                   </span>
                 </div>
                 {r.title && <div className="font-semibold mb-1">{r.title}</div>}
