@@ -408,6 +408,32 @@ export default async function AdminRepairDetailPage({ params, searchParams }: Pr
                   />
                 </div>
               </div>
+              <div>
+                <h3 className="text-sm font-bold mb-2 text-foreground-muted uppercase tracking-wider">
+                  Paiement
+                </h3>
+                <div className="grid md:grid-cols-2 gap-3">
+                  <Select label="Statut" name="paymentStatus" defaultValue={repair.paymentStatus ?? "NON_PAYE"}>
+                    <option value="NON_PAYE">Non payé</option>
+                    <option value="ACOMPTE">Acompte (versement partiel)</option>
+                    <option value="PAYE">Payé (total)</option>
+                  </Select>
+                  <label className="block">
+                    <span className="text-xs text-foreground-muted font-semibold mb-1.5 block">
+                      Montant versé (€ TTC, pour acompte ou payé)
+                    </span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      name="paidAmount"
+                      defaultValue={repair.paidAmount?.toString() ?? ""}
+                      placeholder="ex : 50.00"
+                      className={inputCls}
+                    />
+                  </label>
+                </div>
+              </div>
               <div className="flex justify-end">
                 <button
                   type="submit"

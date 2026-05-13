@@ -215,7 +215,7 @@ export default async function GarantiePage({ params, searchParams }: Props) {
               </div>
             )}
 
-            {/* Totaux */}
+            {/* Totaux + statut paiement */}
             {totalTtc > 0 && (
               <div className="border-t border-dashed border-black mt-2 pt-2 space-y-0.5">
                 <div className="flex justify-between text-[12px]">
@@ -230,7 +230,22 @@ export default async function GarantiePage({ params, searchParams }: Props) {
                   <span>TOTAL TTC</span>
                   <span>{formatPrice(totals.ttc)}</span>
                 </div>
-                <div className="text-[10px] text-center mt-1">Payé · TVA incluse</div>
+                {repair.paymentStatus === "PAYE" ? (
+                  <div className="text-[11px] text-center mt-1 font-extrabold">✓ Payé · TVA incluse</div>
+                ) : repair.paymentStatus === "ACOMPTE" ? (
+                  <div className="mt-1 space-y-0.5">
+                    <div className="flex justify-between text-[11px]">
+                      <span>Acompte versé</span>
+                      <span>{formatPrice(repair.paidAmount ?? 0)}</span>
+                    </div>
+                    <div className="flex justify-between text-[12px] font-extrabold">
+                      <span>Reste payé à la restitution</span>
+                      <span>{formatPrice(Math.max(0, totalTtc - (repair.paidAmount ?? 0)))}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-[11px] text-center mt-1">Réglé à la restitution</div>
+                )}
               </div>
             )}
 

@@ -2,7 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { Save, UserCheck, X, Search, FileText, Wrench, Loader2 } from "lucide-react";
+import {
+  Save,
+  UserCheck,
+  X,
+  Search,
+  FileText,
+  Wrench,
+  Loader2,
+  Banknote,
+} from "lucide-react";
 import { createRepairAdmin } from "@/lib/actions/admin";
 
 type Mode = "repair" | "devis";
@@ -69,6 +78,8 @@ type ClientSuggestion = {
   phone: string | null;
 };
 
+type PaymentStatus = "NON_PAYE" | "ACOMPTE" | "PAYE";
+
 export function NewRepairForm({ mode = "repair" }: { mode?: Mode }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -76,6 +87,8 @@ export function NewRepairForm({ mode = "repair" }: { mode?: Mode }) {
   const [linkedClient, setLinkedClient] = useState<ClientSuggestion | null>(null);
   const [suggestions, setSuggestions] = useState<ClientSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  // Etat paiement — l'input "Montant verse" s'affiche uniquement si ACOMPTE
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>("NON_PAYE");
   // Champ qui a actuellement le focus — sert à afficher la dropdown au bon endroit
   const [activeField, setActiveField] = useState<"name" | "email" | "phone" | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -324,6 +337,58 @@ export function NewRepairForm({ mode = "repair" }: { mode?: Mode }) {
           rows={4}
           required
         />
+      </Section>
+
+      <Section title="Paiement">
+        <div className="grid md:grid-cols-3 gap-2">
+          {(
+            [
+              { v: "NON_PAYE", l: "Non payé", desc: "À payer à la restitution" },
+              { v: "ACOMPTE", l: "Acompte", desc: "Versement partiel" },
+              { v: "PAYE", l: "Payé", desc: "Montant total versé" },
+            ] as { v: PaymentStatus; l: string; desc: string }[]
+          ).map(({ v, l, desc }) => (
+            <label
+              key={v}
+              className={`cursor-pointer rounded-lg border p-3 transition ${
+                paymentStatus === v
+                  ? "border-primary bg-primary/5"
+                  : "border-border bg-surface-2 hover:border-primary/40"
+              }`}
+            >
+              <input
+                type="radio"
+                name="paymentStatus"
+                value={v}
+                checked={paymentStatus === v}
+                onChange={() => setPaymentStatus(v)}
+                className="sr-only"
+              />
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <Banknote className="h-4 w-4 text-primary" />
+                {l}
+              </div>
+              <div className="text-[11px] text-foreground-muted mt-1">{desc}</div>
+            </label>
+          ))}
+        </div>
+        {paymentStatus === "ACOMPTE" && (
+          <div className="mt-3">
+            <FieldStatic
+              label="Montant de l'acompte versé (€ TTC)"
+              name="paidAmount"
+              type="number"
+              step="0.01"
+              min="0"
+              required
+              placeholder="50.00"
+            />
+            <p className="text-[11px] text-foreground-muted mt-1.5">
+              Le reste à payer (= devis − acompte) sera calculé automatiquement
+              et imprimé sur le ticket.
+            </p>
+          </div>
+        )}
       </Section>
 
       <Section title="Notes internes">

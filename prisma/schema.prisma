@@ -227,6 +227,10 @@ model Repair {
   assignedToId    String?
   estimatedCost   Float?
   finalCost       Float?
+  // Statut paiement : NON_PAYE (defaut) | ACOMPTE (partiel) | PAYE (total)
+  paymentStatus   String    @default("NON_PAYE")
+  // Montant deja paye (acompte ou total). Reste a payer = total - paidAmount.
+  paidAmount      Float?
   estimatedReadyAt DateTime?
   preferredDropAt DateTime?
   depositedAt     DateTime?

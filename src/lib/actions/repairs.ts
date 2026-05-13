@@ -273,6 +273,8 @@ const CoreSchema = z.object({
   issueDescription: z.string().min(5).max(2000),
   preferredDropAt: z.string().optional(),
   estimatedReadyAt: z.string().optional(),
+  paymentStatus: z.enum(["NON_PAYE", "ACOMPTE", "PAYE"]).optional(),
+  paidAmount: z.coerce.number().min(0).optional(),
 });
 
 export async function updateRepairCore(formData: FormData) {
@@ -287,6 +289,25 @@ export async function updateRepairCore(formData: FormData) {
   if (!parsed.success) throw new Error(parsed.error.errors[0]?.message);
 
   const data = parsed.data;
+
+  // Coherence paiement (idem createRepairAdmin) : derive paidAmount selon
+  // le statut. Si PAYE et pas de montant → on prend estimatedCost si dispo.
+  let paymentUpdate: { paymentStatus?: string; paidAmount?: number | null } = {};
+  if (data.paymentStatus !== undefined) {
+    const existing = await prisma.repair.findUnique({
+      where: { id: data.repairId },
+      select: { estimatedCost: true },
+    });
+    const total = existing?.estimatedCost ?? 0;
+    const finalPaid =
+      data.paymentStatus === "PAYE"
+        ? (data.paidAmount ?? total)
+        : data.paymentStatus === "ACOMPTE"
+          ? (data.paidAmount ?? 0)
+          : 0;
+    paymentUpdate = { paymentStatus: data.paymentStatus, paidAmount: finalPaid };
+  }
+
   await prisma.repair.update({
     where: { id: data.repairId },
     data: {
@@ -302,6 +323,7 @@ export async function updateRepairCore(formData: FormData) {
       issueDescription: data.issueDescription,
       preferredDropAt: data.preferredDropAt ? new Date(data.preferredDropAt) : null,
       estimatedReadyAt: data.estimatedReadyAt ? new Date(data.estimatedReadyAt) : null,
+      ...paymentUpdate,
     },
   });
 

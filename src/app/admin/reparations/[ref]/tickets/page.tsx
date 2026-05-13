@@ -127,6 +127,8 @@ type RepairForTicket = {
   issueType: string;
   issueDescription: string;
   estimatedCost: number | null;
+  paymentStatus: string;
+  paidAmount: number | null;
 };
 
 function Ticket({
@@ -205,6 +207,11 @@ function Ticket({
         </div>
       )}
 
+      {/* Statut paiement — affiché sur les 2 tickets pour que client + atelier
+          sachent ce qui a été versé et ce qu'il reste à encaisser */}
+      <PaymentBlock repair={repair} />
+
+
       {isClient ? (
         <div className="border-t border-dashed border-black mt-2 pt-2 text-center text-[12px]">
           <div className="font-bold mb-1">SUIVRE MA RÉPARATION</div>
@@ -236,6 +243,75 @@ function Row({ label, value }: { label: string; value: string }) {
     <div className="flex gap-1">
       <div className="text-[12px] font-bold uppercase tracking-wider w-14 shrink-0">{label}</div>
       <div className="text-[13px] flex-1 break-words">{value}</div>
+    </div>
+  );
+}
+
+/**
+ * Bloc paiement sur le ticket — gère les 3 cas :
+ *  - PAYE      : badge "PAYÉ" + montant
+ *  - ACOMPTE   : montant versé + reste à payer (le plus utile pour atelier)
+ *  - NON_PAYE  : badge "À PAYER À LA RESTITUTION" + montant estimé
+ */
+function PaymentBlock({ repair }: { repair: RepairForTicket }) {
+  const total = repair.estimatedCost ?? 0;
+  const paid = repair.paidAmount ?? 0;
+  const remaining = Math.max(0, total - paid);
+
+  if (repair.paymentStatus === "PAYE") {
+    return (
+      <div className="border-t border-dashed border-black mt-2 pt-2 text-center">
+        <div
+          className="inline-block px-3 py-1 border-2 border-black text-[13px] font-extrabold uppercase tracking-wider"
+          style={{ borderRadius: 0 }}
+        >
+          ✓ Payé
+        </div>
+        {paid > 0 && (
+          <div className="text-[13px] mt-1.5">
+            Montant : <strong>{paid.toFixed(2)} €</strong>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (repair.paymentStatus === "ACOMPTE") {
+    return (
+      <div className="border-t border-dashed border-black mt-2 pt-2">
+        <div className="text-center mb-1.5">
+          <div
+            className="inline-block px-3 py-1 border-2 border-black text-[12px] font-extrabold uppercase tracking-wider"
+            style={{ borderRadius: 0 }}
+          >
+            Acompte versé
+          </div>
+        </div>
+        <div className="space-y-0.5 text-[13px]">
+          <div className="flex justify-between">
+            <span>Acompte payé</span>
+            <span className="font-extrabold">{paid.toFixed(2)} €</span>
+          </div>
+          <div className="flex justify-between border-t border-dashed border-black pt-1 mt-1">
+            <span className="font-extrabold uppercase tracking-wider text-[12px]">Reste à payer</span>
+            <span className="font-extrabold text-[15px]">{remaining.toFixed(2)} €</span>
+          </div>
+        </div>
+        <div className="text-center text-[11px] mt-1.5">À régler à la restitution</div>
+      </div>
+    );
+  }
+
+  // NON_PAYE
+  return (
+    <div className="border-t border-dashed border-black mt-2 pt-2 text-center">
+      <div
+        className="inline-block px-3 py-1 border-2 border-black text-[12px] font-extrabold uppercase tracking-wider"
+        style={{ borderRadius: 0 }}
+      >
+        Non payé
+      </div>
+      <div className="text-[12px] mt-1.5">À régler à la restitution</div>
     </div>
   );
 }

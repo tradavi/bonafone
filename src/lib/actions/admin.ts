@@ -296,6 +296,9 @@ const CreateRepairSchema = z.object({
   issueDescription: z.string().min(5).max(2000),
   estimatedCost: z.coerce.number().min(0).optional(),
   internalNotes: z.string().max(5000).optional(),
+  // Paiement : NON_PAYE (defaut) | ACOMPTE | PAYE. paidAmount obligatoire pour ACOMPTE.
+  paymentStatus: z.enum(["NON_PAYE", "ACOMPTE", "PAYE"]).default("NON_PAYE"),
+  paidAmount: z.coerce.number().min(0).optional(),
 });
 
 export async function createRepairAdmin(formData: FormData) {
@@ -440,6 +443,15 @@ export async function createRepairAdmin(formData: FormData) {
       ? "Appareil déposé en magasin pour devis"
       : "Dossier créé en back-office (appareil reçu)";
 
+  // Coherence paiement : si PAYE et pas de paidAmount fourni, on prend
+  // estimatedCost. Si NON_PAYE, on force paidAmount a 0.
+  const finalPaidAmount =
+    data.paymentStatus === "PAYE"
+      ? (data.paidAmount ?? data.estimatedCost ?? 0)
+      : data.paymentStatus === "ACOMPTE"
+        ? (data.paidAmount ?? 0)
+        : 0;
+
   const repair = await prisma.repair.create({
     data: {
       number,
@@ -456,6 +468,8 @@ export async function createRepairAdmin(formData: FormData) {
       issueDescription: data.issueDescription,
       estimatedCost: data.estimatedCost ?? null,
       internalNotes: data.internalNotes || null,
+      paymentStatus: data.paymentStatus,
+      paidAmount: finalPaidAmount,
       // Dans les deux modes l'appareil est physiquement au magasin.
       status: initialStatus,
       depositedAt: new Date(),
