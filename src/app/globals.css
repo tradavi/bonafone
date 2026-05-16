@@ -36,16 +36,21 @@
 
 /* Thème clair — même rouge signature, fonds clairs, contraste élevé */
 :root[data-theme="light"] {
-  --background: #fafafa;
+  /* Fond legerement teinte (zinc-100) pour que les cartes blanches ressortent
+     mieux que sur un fond presque blanc (zinc-50 ne donnait pas assez de
+     contraste entre les sections et le fond). */
+  --background: #f4f4f5;
   --surface: #ffffff;
   --surface-2: #f4f4f5;
   --surface-3: #e4e4e7;
-  --border: #e4e4e7;
-  --border-strong: #d4d4d8;
+  /* Bordures plus marquees pour separer visuellement les cartes du fond.
+     Sans ca, les rounded-2xl bg-surface "se noient" dans le background. */
+  --border: #d4d4d8;
+  --border-strong: #a1a1aa;
 
   --foreground: #18181b;
-  --foreground-muted: #52525b;
-  --foreground-subtle: #71717a;
+  --foreground-muted: #3f3f46; /* zinc-700, plus contraste que zinc-600 */
+  --foreground-subtle: #52525b; /* zinc-600 au lieu de zinc-500 */
 
   /* Le rouge reste identique — c'est la couleur signature */
   --primary: #ef2333;
@@ -57,6 +62,90 @@
   --panel-dark: #0a1024;
   --panel-dark-text: #d1d5e8;
 }
+
+/* ============================================================
+   Overrides de badges/statuts en mode clair
+   ============================================================
+   La palette Tailwind text-COLOR-400 + bg-COLOR-500/15 est conçue pour
+   le dark mode (texte clair sur fond sombre legerement teinte). Sur fond
+   blanc en light mode, ces couleurs ont un contraste insuffisant (texte
+   trop pale, illisible). On force ici les variantes -700/-800 pour le
+   texte et /20-/25 pour le fond afin d'obtenir un contraste WCAG AA.
+
+   Selecteur "[data-theme='light']" englobe TOUT le contenu sauf les
+   panneaux explicitement marques .bg-black (top-bar, footer) qui gardent
+   leur palette dark. */
+:root[data-theme="light"] {
+  /* Backgrounds 10/15/20 → on les renforce a 15/20/25 pour un peu plus
+     de presence sur fond blanc (sans devenir agressifs) */
+}
+
+:root[data-theme="light"] :not(.bg-black, .bg-black *) {
+  /* Texte des badges status — variantes -700/-800 pour bon contraste */
+}
+
+/* Amber : DEMANDE_DEVIS, EN_REPARATION, ATTENTE_PIECE */
+:root[data-theme="light"] .text-amber-400 { color: #b45309 !important; } /* amber-700 */
+:root[data-theme="light"] .bg-amber-500\/15 { background-color: rgb(254 243 199 / 0.9) !important; } /* amber-100 */
+:root[data-theme="light"] .bg-amber-500\/10 { background-color: rgb(254 243 199 / 0.7) !important; }
+:root[data-theme="light"] .bg-amber-500\/5  { background-color: rgb(254 243 199 / 0.5) !important; }
+:root[data-theme="light"] .border-amber-500\/30 { border-color: #fbbf24 !important; } /* amber-400 */
+:root[data-theme="light"] .border-amber-500\/40 { border-color: #f59e0b !important; } /* amber-500 */
+
+/* Blue : RECU */
+:root[data-theme="light"] .text-blue-400 { color: #1d4ed8 !important; } /* blue-700 */
+:root[data-theme="light"] .bg-blue-500\/15 { background-color: rgb(219 234 254 / 0.9) !important; } /* blue-100 */
+:root[data-theme="light"] .bg-blue-500\/10 { background-color: rgb(219 234 254 / 0.7) !important; }
+:root[data-theme="light"] .border-blue-500\/30 { border-color: #60a5fa !important; } /* blue-400 */
+
+/* Purple : DIAGNOSTIC */
+:root[data-theme="light"] .text-purple-400 { color: #7e22ce !important; } /* purple-700 */
+:root[data-theme="light"] .bg-purple-500\/15 { background-color: rgb(243 232 255 / 0.9) !important; } /* purple-100 */
+:root[data-theme="light"] .bg-purple-500\/10 { background-color: rgb(243 232 255 / 0.7) !important; }
+:root[data-theme="light"] .border-purple-500\/30 { border-color: #c084fc !important; } /* purple-400 */
+
+/* Cyan : DEVIS_VALIDE */
+:root[data-theme="light"] .text-cyan-400 { color: #0e7490 !important; } /* cyan-700 */
+:root[data-theme="light"] .bg-cyan-500\/15 { background-color: rgb(207 250 254 / 0.9) !important; } /* cyan-100 */
+:root[data-theme="light"] .bg-cyan-500\/10 { background-color: rgb(207 250 254 / 0.7) !important; }
+:root[data-theme="light"] .border-cyan-500\/30 { border-color: #22d3ee !important; } /* cyan-400 */
+
+/* Orange : ATTENTE_PIECE */
+:root[data-theme="light"] .text-orange-400 { color: #c2410c !important; } /* orange-700 */
+:root[data-theme="light"] .bg-orange-500\/15 { background-color: rgb(255 237 213 / 0.9) !important; } /* orange-100 */
+:root[data-theme="light"] .bg-orange-500\/10 { background-color: rgb(255 237 213 / 0.7) !important; }
+:root[data-theme="light"] .border-orange-500\/30 { border-color: #fb923c !important; } /* orange-400 */
+
+/* Emerald : TERMINE, PRET_RECUPERATION, RESOLUE, succes paiement */
+:root[data-theme="light"] .text-emerald-400,
+:root[data-theme="light"] .text-emerald-300 { color: #047857 !important; } /* emerald-700 */
+:root[data-theme="light"] .bg-emerald-500\/20 { background-color: rgb(209 250 229 / 1) !important; } /* emerald-100 */
+:root[data-theme="light"] .bg-emerald-500\/15 { background-color: rgb(209 250 229 / 0.85) !important; }
+:root[data-theme="light"] .bg-emerald-500\/10 { background-color: rgb(209 250 229 / 0.7) !important; }
+:root[data-theme="light"] .bg-emerald-500\/5  { background-color: rgb(209 250 229 / 0.5) !important; }
+:root[data-theme="light"] .border-emerald-500\/30 { border-color: #34d399 !important; } /* emerald-400 */
+:root[data-theme="light"] .border-emerald-500\/40 { border-color: #10b981 !important; } /* emerald-500 */
+
+/* Rose : ATTENTE_RESTITUTION (devis refuse) */
+:root[data-theme="light"] .text-rose-400 { color: #be123c !important; } /* rose-700 */
+:root[data-theme="light"] .bg-rose-500\/15 { background-color: rgb(255 228 230 / 0.9) !important; } /* rose-100 */
+:root[data-theme="light"] .bg-rose-500\/10 { background-color: rgb(255 228 230 / 0.7) !important; }
+:root[data-theme="light"] .border-rose-500\/30 { border-color: #fb7185 !important; } /* rose-400 */
+
+/* Zinc neutre : RESTITUE, CLOSE */
+:root[data-theme="light"] .text-zinc-400 { color: #52525b !important; } /* zinc-600 */
+:root[data-theme="light"] .bg-zinc-500\/15 { background-color: rgb(244 244 245 / 1) !important; } /* zinc-100 */
+:root[data-theme="light"] .bg-zinc-500\/10 { background-color: rgb(244 244 245 / 0.8) !important; }
+:root[data-theme="light"] .border-zinc-500\/30 { border-color: #a1a1aa !important; } /* zinc-400 */
+
+/* Primary (rouge) — text-primary deja correct sur fond clair, mais on
+   reduit les fonds /5 et /10 trop pales pour les rendre plus visibles */
+:root[data-theme="light"] .bg-primary\/10 { background-color: rgb(254 226 226 / 0.9) !important; } /* red-100 */
+:root[data-theme="light"] .bg-primary\/5  { background-color: rgb(254 226 226 / 0.6) !important; }
+
+/* Foreground subtle/muted utilisés en texte secondaire — s'assurer du
+   contraste avec le fond blanc des cartes (.bg-surface). Tailwind genere
+   ces couleurs au moment du build, on les force en runtime ici. */
 
 @theme inline {
   --color-background: var(--background);
