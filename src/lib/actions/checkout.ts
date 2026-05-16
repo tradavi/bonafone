@@ -237,3 +237,41 @@ export async function cancelPendingOrder(orderNumber: string): Promise<{ ok: boo
   revalidatePath("/admin/commandes");
   return { ok: true };
 }
+
+// Action client-facing : seul le propriétaire peut annuler sa propre commande PENDING.
+// Distincte de `cancelPendingOrder` qui est appelée sans authz par le retour Stripe.
+export async function cancelOwnPendingOrder(
+  orderNumber: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!orderNumber || typeof orderNumber !== "string") {
+    return { ok: false, error: "Référence invalide." };
+  }
+
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { ok: false, error: "Vous devez être connecté." };
+  }
+
+  const order = await prisma.order.findUnique({
+    where: { number: orderNumber },
+    select: { id: true, userId: true, status: true },
+  });
+
+  // On ne révèle pas l'existence : même message si pas trouvé ou pas propriétaire.
+  if (!order || order.userId !== session.user.id) {
+    return { ok: false, error: "Commande introuvable." };
+  }
+
+  if (order.status !== "PENDING") {
+    return {
+      ok: false,
+      error: "Cette commande ne peut plus être annulée à ce stade.",
+    };
+  }
+
+  await cancelPendingOrderInternal(orderNumber);
+  revalidatePath("/compte/commandes");
+  revalidatePath(`/compte/commandes/${orderNumber}`);
+  revalidatePath("/admin/commandes");
+  return { ok: true };
+}

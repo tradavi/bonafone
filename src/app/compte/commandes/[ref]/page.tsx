@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { getOrderByNumber } from "@/lib/queries";
 import { formatPrice } from "@/lib/utils";
 import { ORDER_STATUS_STYLES, ORDER_STATUS_LABEL } from "@/lib/order-status";
+import { CancelOrderButton } from "@/components/orders/cancel-order-button";
 
 type Props = { params: Promise<{ ref: string }> };
 
@@ -210,6 +211,23 @@ export default async function OrderDetailPage({ params }: Props) {
           </span>
         </div>
       </div>
+
+      {/* Zone d'action — annulation possible uniquement tant que la commande est PENDING */}
+      {order.status === "PENDING" && (
+        <div className="bg-surface border border-red-500/20 rounded-2xl p-6 flex items-start justify-between gap-4 flex-wrap">
+          <div className="min-w-0">
+            <h2 className="font-extrabold tracking-tight mb-1">
+              Annuler cette commande
+            </h2>
+            <p className="text-sm text-foreground-muted max-w-xl">
+              Tant que la commande est en attente de paiement, vous pouvez
+              l&apos;annuler. Les articles seront remis en stock et le statut
+              passera à <span className="font-semibold">Annulée</span>.
+            </p>
+          </div>
+          <CancelOrderButton orderNumber={order.number} />
+        </div>
+      )}
     </div>
   );
 }
