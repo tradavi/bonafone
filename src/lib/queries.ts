@@ -616,6 +616,7 @@ export async function getRepairsDashboardKpis() {
     prisma.repair.count({ where: { status: "IRREPARABLE" } }),
     prisma.repair.aggregate({
       _avg: { finalCost: true },
+      _sum: { paidAmount: true },
       _count: true,
     }),
     prisma.repair.groupBy({
@@ -638,6 +639,9 @@ export async function getRepairsDashboardKpis() {
     sadClientsCount,
     totalRepairs: repairsAgg._count,
     avgFinalCost: repairsAgg._avg.finalCost ?? 0,
+    // Chiffre d'affaires = somme des paiements reels encaisses sur toutes
+    // les reparations (acomptes + paiements complets confondus).
+    totalRevenue: repairsAgg._sum.paidAmount ?? 0,
     repairsByStatus: repairStatusGroup.map((g) => ({
       status: g.status,
       count: g._count._all,

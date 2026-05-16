@@ -9,6 +9,7 @@ import {
   MessageSquare,
   Smile,
   Frown,
+  Banknote,
 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 import {
@@ -85,6 +86,12 @@ export default async function AdminDashboard() {
       label: "Demandes de devis",
       value: devisCount.toString(),
       icon: FileText,
+    },
+    {
+      label: "Chiffre d'affaires",
+      value: kpis.totalRevenue > 0 ? formatPrice(kpis.totalRevenue) : "—",
+      icon: Banknote,
+      hint: "Total encaissé sur toutes les réparations",
     },
     {
       label: "Coût moyen réparation",

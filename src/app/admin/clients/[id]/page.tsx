@@ -24,6 +24,13 @@ import { displayEmail, isSyntheticEmail } from "@/lib/synthetic-email";
 import { deleteClientAdmin, resetClientPasswordAdmin } from "@/lib/actions/admin";
 import { ConfirmSubmitButton } from "@/components/admin/confirm-submit-button";
 
+// Badges niveau de fidelite — palettes contrastees pour le mode clair
+const TIER_STYLES: Record<"bronze" | "silver" | "gold", string> = {
+  bronze: "bg-amber-500/15 text-amber-400 border-amber-500/30",
+  silver: "bg-zinc-500/15 text-zinc-400 border-zinc-500/30",
+  gold: "bg-amber-500/20 text-amber-400 border-amber-500/40",
+};
+
 const REPAIR_STATUS_STYLES: Record<string, string> = {
   RECU: "bg-blue-500/10 text-blue-400 border-blue-500/30",
   DIAGNOSTIC: "bg-purple-500/10 text-purple-400 border-purple-500/30",
@@ -77,12 +84,32 @@ export default async function AdminClientDetailPage({ params, searchParams }: Pr
   const initials =
     (client.firstName?.[0] ?? "") + (client.lastName?.[0] ?? client.email[0] ?? "?");
 
-  const totalSpent = client.orders
-    .filter((o) => ["PAID", "PREPARING", "SHIPPED", "DELIVERED"].includes(o.status))
-    .reduce((s, o) => s + o.total, 0);
+  // CA cumulé = somme des paiements réels (paidAmount) sur toutes les
+  // réparations du client. On utilise paidAmount plutôt que estimatedCost
+  // pour refléter ce qui a vraiment été encaissé (vs ce qui était estimé).
+  // Pour les anciennes réparations sans paidAmount mais en status RESTITUE,
+  // on fallback sur finalCost ou estimatedCost.
+  const totalSpent = client.repairs.reduce((s, r) => {
+    if (r.paidAmount != null && r.paidAmount > 0) return s + r.paidAmount;
+    // Fallback : si pas de paidAmount mais réparation restituée, on suppose
+    // que le client a payé le montant final/estimé.
+    if (r.status === "RESTITUE") {
+      return s + (r.finalCost ?? r.estimatedCost ?? 0);
+    }
+    return s;
+  }, 0);
+
+  // Niveau de fidélité calculé dynamiquement sur le nombre de réparations
+  // restituées (= terminées et rendues au client) :
+  //  - 0-4 : bronze
+  //  - 5-9 : silver
+  //  - 10+ : gold
+  const completedRepairs = client.repairs.filter((r) => r.status === "RESTITUE").length;
+  const tier: "bronze" | "silver" | "gold" =
+    completedRepairs >= 10 ? "gold" : completedRepairs >= 5 ? "silver" : "bronze";
 
   const canResetPassword = !isSyntheticEmail(client.email);
-  const hasLinkedData = client.orders.length > 0 || client.repairs.length > 0;
+  const hasLinkedData = client.repairs.length > 0;
 
   return (
     <div className="space-y-4">
@@ -217,9 +244,8 @@ export default async function AdminClientDetailPage({ params, searchParams }: Pr
         )}
       </div>
 
-      {/* Stats rapides */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard icon={<ShoppingBag className="h-5 w-5" />} label="Commandes" value={client.orders.length} />
+      {/* Stats rapides — Commandes retiree (mode service reparation) */}
+      <div className="grid sm:grid-cols-3 gap-3">
         <StatCard icon={<Wrench className="h-5 w-5" />} label="Réparations" value={client.repairs.length} />
         <StatCard icon={<Heart className="h-5 w-5" />} label="Favoris" value={client.wishlist.length} />
         <StatCard icon={<Star className="h-5 w-5" />} label="Avis" value={client.reviews.length} />
@@ -228,44 +254,6 @@ export default async function AdminClientDetailPage({ params, searchParams }: Pr
       <div className="grid lg:grid-cols-[1fr_320px] gap-4">
         {/* Colonne principale */}
         <div className="space-y-4 min-w-0">
-          {/* Commandes */}
-          <Section title="Commandes" icon={<ShoppingBag className="h-4 w-4" />}>
-            {client.orders.length === 0 ? (
-              <Empty>Aucune commande.</Empty>
-            ) : (
-              <ul className="divide-y divide-border">
-                {client.orders.map((o) => {
-                  const itemsCount = o.items.reduce((n, i) => n + i.quantity, 0);
-                  return (
-                    <li key={o.id}>
-                      <Link
-                        href={`/admin/commandes/${o.number}`}
-                        className="flex items-center justify-between gap-3 p-3 hover:bg-surface-2 transition"
-                      >
-                        <div className="min-w-0">
-                          <div className="font-mono text-xs text-primary">{o.number}</div>
-                          <div className="text-xs text-foreground-muted">
-                            {o.createdAt.toLocaleDateString("fr-FR", { timeZone: "Europe/Brussels" })} · {itemsCount} article
-                            {itemsCount > 1 ? "s" : ""}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3 shrink-0">
-                          <span className="font-semibold tabular-nums">{formatPrice(o.total)}</span>
-                          <span
-                            className={`px-2 py-0.5 text-[10px] font-bold rounded border ${
-                              ORDER_STATUS_STYLES[o.status] ?? ORDER_STATUS_STYLES.PENDING
-                            }`}
-                          >
-                            {ORDER_STATUS_LABEL[o.status] ?? o.status}
-                          </span>
-                        </div>
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </Section>
 
           {/* Réparations */}
           <Section title="Réparations" icon={<Wrench className="h-4 w-4" />}>
@@ -379,21 +367,47 @@ export default async function AdminClientDetailPage({ params, searchParams }: Pr
             )}
           </Section>
 
-          {/* Fidélité */}
-          {client.loyalty && (
-            <Section title="Fidélité" icon={<Award className="h-4 w-4" />}>
-              <div className="p-4 text-sm space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-foreground-muted">Points</span>
-                  <span className="font-bold tabular-nums">{client.loyalty.points}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-foreground-muted">Niveau</span>
-                  <span className="font-semibold capitalize">{client.loyalty.tier}</span>
-                </div>
+          {/* Fidélité — calcul dynamique sur reparations restituees */}
+          <Section title="Fidélité" icon={<Award className="h-4 w-4" />}>
+            <div className="p-4 text-sm space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-foreground-muted">Niveau</span>
+                <span
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider border ${TIER_STYLES[tier]}`}
+                >
+                  <Award className="h-3.5 w-3.5" />
+                  {tier === "gold" ? "Or" : tier === "silver" ? "Argent" : "Bronze"}
+                </span>
               </div>
-            </Section>
-          )}
+              <div className="flex justify-between">
+                <span className="text-foreground-muted">Réparations restituées</span>
+                <span className="font-bold tabular-nums">{completedRepairs}</span>
+              </div>
+              {/* Progression vers le niveau suivant */}
+              {tier !== "gold" && (
+                <div className="pt-2 border-t border-border">
+                  <div className="text-xs text-foreground-muted mb-1.5">
+                    {tier === "bronze"
+                      ? `Plus que ${5 - completedRepairs} réparation${5 - completedRepairs > 1 ? "s" : ""} pour passer Argent`
+                      : `Plus que ${10 - completedRepairs} réparation${10 - completedRepairs > 1 ? "s" : ""} pour passer Or`}
+                  </div>
+                  <div className="h-1.5 rounded-full bg-surface-2 overflow-hidden">
+                    <div
+                      className="h-full bg-primary transition-all"
+                      style={{
+                        width: `${tier === "bronze" ? Math.min(100, (completedRepairs / 5) * 100) : Math.min(100, ((completedRepairs - 5) / 5) * 100)}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+              {tier === "gold" && (
+                <div className="pt-2 border-t border-border text-xs text-foreground-muted text-center">
+                  🏆 Client Or — niveau maximum atteint
+                </div>
+              )}
+            </div>
+          </Section>
 
           {/* Wishlist */}
           {client.wishlist.length > 0 && (
