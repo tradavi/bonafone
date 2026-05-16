@@ -268,8 +268,26 @@ input, textarea, select {
   color-scheme: light;
 }
 
-/* Le top-bar et le footer utilisent la couleur dark dans les deux thèmes. */
+/* Le top-bar et le footer utilisent la couleur dark dans les deux thèmes.
+   On force le fond ET on redeclare les variables CSS locales pour que tous
+   les enfants (text-foreground, border-border, bg-surface, etc.) prennent
+   les valeurs DARK même quand le theme global est clair — sinon on a du
+   texte fonce sur fond fonce = invisible. */
 .bg-black {
   background-color: var(--panel-dark) !important;
-  color: var(--panel-dark-text);
+  /* Cascade locale : ces variables ecrasent celles de :root[data-theme="light"]
+     pour TOUT le sous-arbre du footer/top-bar. */
+  --foreground: #f5f5f7;
+  --foreground-muted: #a8b2cf;
+  --foreground-subtle: #7682a8;
+  --border: #1e2c52;
+  --border-strong: #2e4380;
+  --surface: #111a36;
+  --surface-2: #1a2547;
+  --surface-3: #233361;
+  color: var(--foreground);
 }
+
+/* Liens dans le footer : couleur foreground/80 redirigee vers le ton clair
+   dark-mode. hover:text-foreground assure aussi l'eclaircissement au survol. */
+.bg-black a:hover { color: var(--foreground); }
