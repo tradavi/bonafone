@@ -36,21 +36,21 @@
 
 /* Thème clair — même rouge signature, fonds clairs, contraste élevé */
 :root[data-theme="light"] {
-  /* Fond legerement teinte (zinc-100) pour que les cartes blanches ressortent
-     mieux que sur un fond presque blanc (zinc-50 ne donnait pas assez de
-     contraste entre les sections et le fond). */
-  --background: #f4f4f5;
+  /* Fond legerement teinte bleu-gris (slate) pour donner du caractere au lieu
+     d'un gris neutre fade. Les cartes blanches ressortent mieux + l'oeil
+     accroche les sections sans fatigue. */
+  --background: #eef2f7;        /* slate-100 teinte cool */
   --surface: #ffffff;
-  --surface-2: #f4f4f5;
-  --surface-3: #e4e4e7;
-  /* Bordures plus marquees pour separer visuellement les cartes du fond.
-     Sans ca, les rounded-2xl bg-surface "se noient" dans le background. */
-  --border: #d4d4d8;
-  --border-strong: #a1a1aa;
+  --surface-2: #f8fafc;         /* slate-50, hover/zones secondaires */
+  --surface-3: #e2e8f0;         /* slate-200 */
+  /* Bordures legerement teintees bleu-gris (pas pur gris) — plus douces a
+     l'oeil et delimitent clairement les cartes sur le fond cool */
+  --border: #cbd5e1;            /* slate-300 */
+  --border-strong: #94a3b8;     /* slate-400 */
 
-  --foreground: #18181b;
-  --foreground-muted: #3f3f46; /* zinc-700, plus contraste que zinc-600 */
-  --foreground-subtle: #52525b; /* zinc-600 au lieu de zinc-500 */
+  --foreground: #0f172a;        /* slate-900, plus profond que zinc-900 */
+  --foreground-muted: #334155;  /* slate-700 */
+  --foreground-subtle: #475569; /* slate-600 */
 
   /* Le rouge reste identique — c'est la couleur signature */
   --primary: #ef2333;
@@ -61,6 +61,47 @@
   /* Top-bar et footer : on garde la couleur dark même en thème clair */
   --panel-dark: #0a1024;
   --panel-dark-text: #d1d5e8;
+
+  /* Ombres systeme pour donner du relief aux cartes — la cle pour que
+     bg-surface (blanc) ne se confonde pas avec bg-background (slate-100) */
+  --shadow-card: 0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.05);
+  --shadow-card-strong: 0 4px 6px -1px rgb(15 23 42 / 0.08), 0 2px 4px -2px rgb(15 23 42 / 0.06);
+  --shadow-elevated: 0 10px 15px -3px rgb(15 23 42 / 0.08), 0 4px 6px -4px rgb(15 23 42 / 0.04);
+}
+
+/* En light mode, toutes les cartes "bg-surface" recoivent une ombre subtile
+   pour creer du relief. La bordure seule ne suffit pas — l'ombre rajoute
+   une profondeur qui structure la page et reduit la fatigue visuelle.
+   Le selecteur exclut explicitement les zones qui doivent rester plates
+   (sidebar admin, tickets thermique en print). */
+:root[data-theme="light"] .bg-surface:not(.no-shadow) {
+  box-shadow: var(--shadow-card);
+}
+
+/* Cartes interactives (cliquables, hover) montent legerement au survol */
+:root[data-theme="light"] a.bg-surface:hover,
+:root[data-theme="light"] button.bg-surface:hover {
+  box-shadow: var(--shadow-card-strong);
+  transform: translateY(-1px);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+/* Surfaces interactives plus marquees — boutons et inputs au focus */
+:root[data-theme="light"] input:focus,
+:root[data-theme="light"] textarea:focus,
+:root[data-theme="light"] select:focus {
+  box-shadow: 0 0 0 3px rgba(239, 35, 51, 0.12);
+}
+
+/* Dropdowns / popovers / modales : ombre plus prononcee */
+:root[data-theme="light"] .shadow-2xl,
+:root[data-theme="light"] [class*="shadow-xl"] {
+  box-shadow: var(--shadow-elevated) !important;
+}
+
+/* En print on coupe les ombres pour eviter le rendu degueulasse sur papier */
+@media print {
+  :root[data-theme="light"] .bg-surface { box-shadow: none !important; }
 }
 
 /* ============================================================
