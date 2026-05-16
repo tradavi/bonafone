@@ -6,7 +6,6 @@ import {
   FileText,
   ArrowRight,
   Star,
-  MessageSquare,
   Smile,
   Frown,
   Banknote,
@@ -111,11 +110,6 @@ export default async function AdminDashboard() {
       label: "Réclamations à traiter",
       value: kpis.pendingReclamations.toString(),
       icon: AlertCircle,
-    },
-    {
-      label: "Messages reçus",
-      value: kpis.unreadMessages.toString(),
-      icon: MessageSquare,
     },
   ];
 
