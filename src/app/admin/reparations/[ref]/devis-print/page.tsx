@@ -33,10 +33,31 @@ export default async function DevisPrintPage({ params }: Props) {
     <>
       <style>{`
         @media print {
-          @page { size: A4; margin: 18mm; }
+          @page { size: A4; margin: 10mm; }
           body { background: white !important; color: #000 !important; }
           .no-print { display: none !important; }
-          .print-page { padding: 0 !important; box-shadow: none !important; border: none !important; }
+          .print-page {
+            padding: 0 !important;
+            box-shadow: none !important;
+            border: none !important;
+            max-width: 100% !important;
+          }
+          /* Compression verticale : on rapproche tout pour tenir sur 1 page A4.
+             Les classes sm:* / lg:* ne s'appliquent pas a l'impression, donc on
+             utilise des selecteurs CSS directs au lieu de Tailwind. */
+          .devis-header { padding-bottom: 8px !important; }
+          .devis-title-block { margin-top: 12px !important; margin-bottom: 10px !important; }
+          .devis-client-grid { margin-bottom: 10px !important; gap: 16px !important; }
+          .devis-diagnostic { margin-bottom: 10px !important; }
+          .devis-diagnostic-box { padding: 8px 10px !important; }
+          .devis-table { margin-bottom: 6px !important; }
+          .devis-table td, .devis-table th { padding-top: 4px !important; padding-bottom: 4px !important; }
+          .devis-conditions { margin-top: 8px !important; padding: 8px 10px !important; }
+          .devis-signatures { margin-top: 14px !important; padding-top: 4px !important; gap: 24px !important; }
+          .devis-signatures .sig-name { margin-bottom: 32px !important; }
+          .devis-footer { margin-top: 12px !important; }
+          /* TOTAL TTC reste lisible mais compact */
+          .devis-total-ttc { font-size: 20px !important; }
         }
       `}</style>
 
@@ -49,7 +70,7 @@ export default async function DevisPrintPage({ params }: Props) {
         <div className="print-page max-w-[800px] mx-auto bg-white border border-zinc-200 rounded-lg shadow-sm p-10">
           {/* Header — logo officiel (image PNG incluant wordmark + tagline)
               + adresse a droite, alignes verticalement au centre */}
-          <div className="flex items-center justify-between pb-6 border-b-2 border-[#ff2d3a] gap-4 flex-wrap">
+          <div className="devis-header flex items-center justify-between pb-6 border-b-2 border-[#ff2d3a] gap-4 flex-wrap">
             <LogoImage className="h-14 w-auto" />
             <div className="text-right text-xs text-zinc-600 leading-relaxed">
               <div>{STORE.address}</div>
@@ -59,7 +80,7 @@ export default async function DevisPrintPage({ params }: Props) {
           </div>
 
           {/* Title */}
-          <div className="flex items-baseline justify-between mt-8 mb-6">
+          <div className="devis-title-block flex items-baseline justify-between mt-8 mb-6">
             <h1 className="text-3xl font-extrabold text-zinc-900 tracking-tight">
               DEVIS
             </h1>
@@ -72,7 +93,7 @@ export default async function DevisPrintPage({ params }: Props) {
           </div>
 
           {/* Client + Appareil */}
-          <div className="grid grid-cols-2 gap-6 mb-8 text-sm">
+          <div className="devis-client-grid grid grid-cols-2 gap-6 mb-8 text-sm">
             <div>
               <div className="text-[10px] uppercase tracking-widest font-bold text-zinc-500 mb-2">
                 Client
@@ -98,18 +119,18 @@ export default async function DevisPrintPage({ params }: Props) {
           </div>
 
           {/* Diagnostic */}
-          <div className="mb-8">
+          <div className="devis-diagnostic mb-8">
             <div className="text-[10px] uppercase tracking-widest font-bold text-zinc-500 mb-2">
               Diagnostic
             </div>
-            <div className="bg-zinc-50 border border-zinc-200 rounded-lg p-4 text-sm">
+            <div className="devis-diagnostic-box bg-zinc-50 border border-zinc-200 rounded-lg p-4 text-sm">
               <div className="font-semibold mb-1">{repair.issueType}</div>
               <p className="text-zinc-700 whitespace-pre-line">{repair.issueDescription}</p>
             </div>
           </div>
 
           {/* Détail des coûts — colonnes HT et TTC, TVA totale en bas */}
-          <table className="w-full text-sm mb-6">
+          <table className="devis-table w-full text-sm mb-6">
             <thead>
               <tr className="border-b-2 border-zinc-300 text-left text-xs uppercase tracking-wider text-zinc-500">
                 <th className="py-2 font-semibold">Désignation</th>
@@ -172,7 +193,7 @@ export default async function DevisPrintPage({ params }: Props) {
               </tr>
               <tr className="border-t-2 border-zinc-400">
                 <td className="py-3 font-bold text-base">TOTAL TTC</td>
-                <td colSpan={2} className="py-3 text-right text-2xl font-black text-[#ff2d3a] font-mono">
+                <td colSpan={2} className="devis-total-ttc py-3 text-right text-2xl font-black text-[#ff2d3a] font-mono">
                   {formatPrice(totals.ttc)}
                 </td>
               </tr>
@@ -180,11 +201,11 @@ export default async function DevisPrintPage({ params }: Props) {
           </table>
 
           {/* Conditions */}
-          <div className="mt-8 p-4 bg-zinc-50 border border-zinc-200 rounded-lg text-xs text-zinc-600 space-y-1">
+          <div className="devis-conditions mt-8 p-4 bg-zinc-50 border border-zinc-200 rounded-lg text-xs text-zinc-600 space-y-1">
             <div className="font-semibold text-zinc-700">Conditions</div>
             <ul className="list-disc list-inside space-y-0.5">
               <li>Devis valable 30 jours à compter de la date d&apos;édition.</li>
-              <li>Garantie 6 mois sur les pièces et la main d&apos;œuvre.</li>
+              <li>Garantie 1 an sur les pièces et la main d&apos;œuvre.</li>
               <li>
                 Si l&apos;appareil est jugé irréparable après diagnostic, aucun frais
                 n&apos;est facturé.
@@ -197,9 +218,9 @@ export default async function DevisPrintPage({ params }: Props) {
           </div>
 
           {/* Signatures */}
-          <div className="grid grid-cols-2 gap-10 mt-12 pt-6 text-xs">
+          <div className="devis-signatures grid grid-cols-2 gap-10 mt-12 pt-6 text-xs">
             <div>
-              <div className="font-semibold mb-12 text-zinc-700">
+              <div className="sig-name font-semibold mb-12 text-zinc-700">
                 Bon pour accord — Client
               </div>
               <div className="border-t border-zinc-300 pt-1 text-zinc-500">
@@ -207,14 +228,14 @@ export default async function DevisPrintPage({ params }: Props) {
               </div>
             </div>
             <div>
-              <div className="font-semibold mb-12 text-zinc-700">Bonafone</div>
+              <div className="sig-name font-semibold mb-12 text-zinc-700">Bonafone</div>
               <div className="border-t border-zinc-300 pt-1 text-zinc-500">
                 Cachet et signature
               </div>
             </div>
           </div>
 
-          <div className="mt-10 text-center text-[10px] text-zinc-400">
+          <div className="devis-footer mt-10 text-center text-[10px] text-zinc-400">
             {STORE.name} · {STORE.address}
           </div>
         </div>

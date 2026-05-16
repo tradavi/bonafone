@@ -489,7 +489,7 @@ export function tplRepairQuote(opts: {
       <div style="font-size:12px;font-weight:700;color:${COLORS.foreground};margin-bottom:8px">Conditions</div>
       <ul style="margin:0;padding-left:18px;font-size:12px;color:${COLORS.muted};line-height:1.7">
         <li>Devis valable 30 jours à compter de la date d'édition.</li>
-        <li>Garantie 6 mois sur les pièces et la main d'œuvre.</li>
+        <li>Garantie 1 an sur les pièces et la main d'œuvre.</li>
         <li>Aucun frais si l'appareil est jugé irréparable après diagnostic.</li>
         <li>L'acceptation de ce devis vaut autorisation d'effectuer la réparation.</li>
       </ul>

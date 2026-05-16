@@ -36,7 +36,7 @@ export function RepairCTA() {
             <div className="flex flex-wrap gap-5 mb-8 text-sm">
               {[
                 { icon: Clock, text: "Devis sous 24h" },
-                { icon: ShieldCheck, text: "Garantie 6 mois" },
+                { icon: ShieldCheck, text: "Garantie 1 an" },
                 { icon: Wrench, text: "Toutes marques" },
               ].map(({ icon: Icon, text }) => (
                 <div key={text} className="flex items-center gap-2 text-foreground-muted">
