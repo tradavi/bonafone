@@ -15,8 +15,8 @@ const STATUSES = [
   { code: "DEVIS_VALIDE", label: "Devis validé" },
   { code: "EN_REPARATION", label: "En réparation" },
   { code: "ATTENTE_PIECE", label: "Attente pièce" },
-  { code: "TERMINE", label: "Terminé" },
-  { code: "PRET_RECUPERATION", label: "À récupérer" },
+  // Fusion TERMINE + PRET_RECUPERATION
+  { code: "PRET_RECUPERATION", label: "Terminé / À récupérer" },
   { code: "ATTENTE_RESTITUTION", label: "Devis refusé" },
   { code: "RESTITUE", label: "Restitué" },
   { code: "IRREPARABLE", label: "Irréparable" },

@@ -564,9 +564,10 @@ export function tplRepairStatus(opts: {
   const subject = `${opts.number} — ${label}`;
   const trackUrl = `${baseUrl()}/reparations/suivi?ref=${opts.number}`;
   const firstName = opts.customerName.split(" ")[0] || opts.customerName;
-  // PRET_RECUPERATION et TERMINE = bonne nouvelle → variant success
+  // PRET_RECUPERATION (fusion ex-TERMINE) et RESTITUE = bonne nouvelle → success
   const variant: "neutral" | "success" =
     opts.status === "PRET_RECUPERATION" || opts.status === "TERMINE" || opts.status === "RESTITUE"
+    // TERMINE laisse pour compat retro avec d'eventuelles vieilles entrees DB
       ? "success"
       : "neutral";
   const html = emailLayout(
@@ -774,8 +775,10 @@ const REPAIR_STATUS_LABEL: Record<string, string> = {
   DEVIS_VALIDE: "Devis validé",
   EN_REPARATION: "En réparation",
   ATTENTE_PIECE: "En attente de pièce",
-  TERMINE: "Réparation terminée",
-  PRET_RECUPERATION: "Prêt à récupérer",
+  // Fusion : la reparation est terminee ET pret a etre recupere
+  PRET_RECUPERATION: "Réparation terminée — prêt à récupérer",
+  // Compat retro : si une vieille ligne en DB a encore TERMINE, on l'aliase
+  TERMINE: "Réparation terminée — prêt à récupérer",
   ATTENTE_RESTITUTION: "Devis refusé — appareil à récupérer",
   RESTITUE: "Restitué",
   IRREPARABLE: "Irréparable",

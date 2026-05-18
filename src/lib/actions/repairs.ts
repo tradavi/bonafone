@@ -14,7 +14,8 @@ const STATUSES = [
   "DEVIS_VALIDE",
   "EN_REPARATION",
   "ATTENTE_PIECE",
-  "TERMINE",
+  // PRET_RECUPERATION = reparation terminee + appareil pret a recuperer.
+  // TERMINE etait redondant (a la fin de la rep le client peut venir) — fusionne ici.
   "PRET_RECUPERATION",
   "ATTENTE_RESTITUTION", // client a refusé le devis, attend de récupérer l'appareil non réparé
   "RESTITUE",

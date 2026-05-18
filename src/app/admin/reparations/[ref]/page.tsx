@@ -61,8 +61,8 @@ const STATUS_FLOW = [
   { code: "DEVIS_VALIDE", label: "Devis validé" },
   { code: "EN_REPARATION", label: "En cours de réparation" },
   { code: "ATTENTE_PIECE", label: "En attente de pièce" },
-  { code: "TERMINE", label: "Réparation terminée" },
-  { code: "PRET_RECUPERATION", label: "Prêt à récupérer" },
+  // Fusion TERMINE + PRET_RECUPERATION : un seul statut "fin de reparation"
+  { code: "PRET_RECUPERATION", label: "Réparation terminée — prêt à récupérer" },
   { code: "ATTENTE_RESTITUTION", label: "Devis refusé — appareil à récupérer" },
   { code: "RESTITUE", label: "Restitué" },
   { code: "IRREPARABLE", label: "Irréparable" },
@@ -75,8 +75,9 @@ const STATUS_STYLES: Record<string, string> = {
   DEVIS_VALIDE: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30",
   EN_REPARATION: "bg-amber-500/15 text-amber-400 border-amber-500/30",
   ATTENTE_PIECE: "bg-orange-500/15 text-orange-400 border-orange-500/30",
-  TERMINE: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
   PRET_RECUPERATION: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40",
+  // Alias retro : si une vieille ligne DB a encore TERMINE, on affiche pareil
+  TERMINE: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40",
   ATTENTE_RESTITUTION: "bg-rose-500/15 text-rose-400 border-rose-500/30",
   RESTITUE: "bg-zinc-500/15 text-zinc-400 border-zinc-500/30",
   IRREPARABLE: "bg-primary/10 text-primary border-primary/30",

@@ -190,8 +190,7 @@ export const MOCK_REPAIR_STATUS = [
   { code: "DEVIS_VALIDE", label: "Devis validé", description: "Vous avez approuvé le devis" },
   { code: "EN_REPARATION", label: "En cours de réparation", description: "L'appareil est en cours de réparation" },
   { code: "ATTENTE_PIECE", label: "En attente de pièce", description: "Une pièce est commandée" },
-  { code: "TERMINE", label: "Réparation terminée", description: "Prête pour restitution" },
-  { code: "PRET_RECUPERATION", label: "Prêt à récupérer", description: "Vous pouvez venir le chercher" },
+  { code: "PRET_RECUPERATION", label: "Réparation terminée — prêt à récupérer", description: "Vous pouvez venir le chercher" },
   { code: "ATTENTE_RESTITUTION", label: "Devis refusé", description: "Appareil non réparé à récupérer" },
   { code: "RESTITUE", label: "Restitué", description: "Appareil rendu" },
 ];

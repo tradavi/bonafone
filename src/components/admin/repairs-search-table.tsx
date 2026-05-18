@@ -10,8 +10,8 @@ const STATUS_STYLES: Record<string, string> = {
   DEVIS_VALIDE: "bg-cyan-500/10 text-cyan-400 border-cyan-500/30",
   EN_REPARATION: "bg-amber-500/10 text-amber-400 border-amber-500/30",
   ATTENTE_PIECE: "bg-orange-500/10 text-orange-400 border-orange-500/30",
-  TERMINE: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
   PRET_RECUPERATION: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40",
+  TERMINE: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40",
   RESTITUE: "bg-zinc-500/10 text-zinc-400 border-zinc-500/30",
   IRREPARABLE: "bg-primary/10 text-primary border-primary/30",
 };

@@ -15,8 +15,8 @@ const STATUS_FLOW = [
   { code: "DEVIS_VALIDE", label: "Devis validé", description: "Vous avez approuvé le devis" },
   { code: "EN_REPARATION", label: "En cours de réparation", description: "L'appareil est en cours de réparation" },
   { code: "ATTENTE_PIECE", label: "En attente de pièce", description: "Une pièce est commandée" },
-  { code: "TERMINE", label: "Réparation terminée", description: "Prête pour restitution" },
-  { code: "PRET_RECUPERATION", label: "Prêt à récupérer", description: "Vous pouvez venir le chercher" },
+  // Fusion TERMINE + PRET_RECUPERATION : une seule etape "fin de reparation"
+  { code: "PRET_RECUPERATION", label: "Réparation terminée — prêt à récupérer", description: "Votre appareil est prêt, vous pouvez venir le chercher en boutique" },
   { code: "ATTENTE_RESTITUTION", label: "Devis refusé", description: "Vous avez refusé le devis — venez récupérer votre appareil non réparé" },
   { code: "RESTITUE", label: "Restitué", description: "Appareil rendu" },
 ];
