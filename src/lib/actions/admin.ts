@@ -284,10 +284,12 @@ const CreateRepairSchema = z.object({
   // appareil reçu pour devis uniquement, en attente d'acceptation du client)
   mode: z.enum(["repair", "devis"]).default("repair"),
   clientId: z.string().optional(),
-  // Prenom + Nom separes (recomposes en customerName pour le Repair).
-  // customerName reste accepte en fallback pour compat avec scripts/tests.
-  firstName: z.string().trim().min(1, "Prénom requis").max(60).optional(),
-  lastName: z.string().trim().min(1, "Nom requis").max(60).optional(),
+  // Mode particulier : Prenom + Nom separes
+  // Mode entreprise : companyName (denomination sociale)
+  // Compat retro : customerName accepte en fallback
+  firstName: z.string().trim().min(1).max(60).optional(),
+  lastName: z.string().trim().min(1).max(60).optional(),
+  companyName: z.string().trim().min(2).max(120).optional(),
   customerName: z.string().min(2).max(120).optional(),
   customerEmail: z.union([z.string().email(), z.literal("")]).optional(),
   customerPhone: z.string().min(6).max(30),
@@ -316,17 +318,22 @@ export async function createRepairAdmin(formData: FormData) {
   }
   const data = parsed.data;
 
-  // Compose customerName a partir de firstName/lastName si fournis ; sinon
-  // utilise customerName legacy si l'ancien formulaire est encore en cache.
-  const composedName =
-    data.firstName || data.lastName
+  // Compose customerName selon le mode :
+  //  - Entreprise : on prend companyName tel quel (place aussi dans lastName
+  //    User, firstName User reste vide pour signaler le type)
+  //  - Particulier : on concatene firstName + lastName
+  //  - Fallback : on utilise customerName legacy si fourni
+  const isCompanyMode = Boolean(data.companyName);
+  const composedName = isCompanyMode
+    ? data.companyName!.trim()
+    : data.firstName || data.lastName
       ? `${data.firstName ?? ""} ${data.lastName ?? ""}`.trim()
       : data.customerName?.trim() ?? "";
   if (composedName.length < 2) {
-    redirect(`/admin/reparations/nouveau?error=${encodeURIComponent("Prénom et nom requis")}`);
+    redirect(
+      `/admin/reparations/nouveau?error=${encodeURIComponent(isCompanyMode ? "Dénomination sociale requise" : "Prénom et nom requis")}`,
+    );
   }
-  // On force customerName composé pour la suite de la fonction (pour que les
-  // dedup-check, recherches User, etc. fonctionnent identiquement a avant).
   data.customerName = composedName;
 
   // -------------------------------------------------------------
@@ -412,12 +419,16 @@ export async function createRepairAdmin(formData: FormData) {
     // Email synthétique si l'admin n'en a pas fourni (sera remplaçable
     // plus tard via la fiche client).
     const phoneDigits = data.customerPhone.replace(/\D/g, "");
-    // Prefer firstName/lastName fournis explicitement par le form ; sinon
-    // fallback en splittant customerName (compat avec anciens scripts).
-    const firstName =
-      data.firstName?.trim() || data.customerName.trim().split(/\s+/)[0] || data.customerName;
-    const lastName =
-      data.lastName?.trim() || data.customerName.trim().split(/\s+/).slice(1).join(" ") || null;
+    // En mode Entreprise : on met "" en firstName et la denomination en
+    // lastName — pas de prenom. Cette convention permet de detecter le
+    // type "entreprise" plus tard (firstName vide + lastName rempli).
+    // En mode Particulier : firstName + lastName separes du formulaire.
+    const firstName = isCompanyMode
+      ? ""
+      : data.firstName?.trim() || data.customerName.trim().split(/\s+/)[0] || data.customerName;
+    const lastName = isCompanyMode
+      ? data.companyName!.trim()
+      : data.lastName?.trim() || data.customerName.trim().split(/\s+/).slice(1).join(" ") || null;
     const hasRealEmail = Boolean(data.customerEmail);
     const email = hasRealEmail
       ? data.customerEmail!.toLowerCase()

@@ -60,9 +60,12 @@ type ClientSuggestion = {
 type PaymentStatus = "NON_PAYE" | "ACOMPTE" | "PAYE";
 
 export function NewRepairForm({ mode = "repair" }: { mode?: Mode }) {
-  // Identite client en 2 champs separes (Prenom + Nom). Recompose en
-  // customerName cote backend pour le Repair, et stocke en firstName/lastName
-  // sur le User.
+  // Identite client : 2 modes
+  //  - Particulier (defaut) : Prenom + Nom separes
+  //  - Entreprise (case cochee) : un seul champ "Denomination"
+  // Recompose en customerName cote backend.
+  const [isCompany, setIsCompany] = useState(false);
+  const [companyName, setCompanyName] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -85,9 +88,11 @@ export function NewRepairForm({ mode = "repair" }: { mode?: Mode }) {
     if (linkedClient) return; // déjà rattaché → pas de recherche
     // On prend la valeur la plus longue parmi les champs identite comme query.
     // Le téléphone : on enlève espaces/tirets pour le matching.
-    const fullNameQuery = `${firstName} ${lastName}`.trim();
+    const identityQuery = isCompany
+      ? companyName.trim()
+      : `${firstName} ${lastName}`.trim();
     const candidates = [
-      fullNameQuery,
+      identityQuery,
       email.trim(),
       phone.replace(/[\s\-.]/g, "").trim(),
     ].filter((v) => v.length >= 2);
@@ -98,7 +103,7 @@ export function NewRepairForm({ mode = "repair" }: { mode?: Mode }) {
     // On envoie celui qui vient d'être modifié (le plus récent = activeField).
     // Sinon le plus long.
     let q = "";
-    if (activeField === "firstName" || activeField === "lastName") q = fullNameQuery;
+    if (activeField === "firstName" || activeField === "lastName") q = identityQuery;
     else if (activeField === "email") q = email.trim();
     else if (activeField === "phone") q = phone.trim();
     else q = candidates.sort((a, b) => b.length - a.length)[0];
@@ -122,19 +127,31 @@ export function NewRepairForm({ mode = "repair" }: { mode?: Mode }) {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [firstName, lastName, email, phone, activeField, linkedClient]);
+  }, [isCompany, companyName, firstName, lastName, email, phone, activeField, linkedClient]);
 
   function pickClient(c: ClientSuggestion) {
     setLinkedClient(c);
-    // Si firstName/lastName en DB, on les utilise directement. Sinon on
-    // fallback en splittant fullName sur le 1er espace.
-    if (c.firstName || c.lastName) {
+    // Heuristique entreprise : un client sans firstName mais avec lastName
+    // ou fullName a probablement ete enregistre comme entreprise. On bascule
+    // automatiquement en mode Entreprise pour l'admin.
+    const isLikelyCompany = !c.firstName && (c.lastName || c.fullName);
+    if (isLikelyCompany) {
+      setIsCompany(true);
+      setCompanyName(c.lastName ?? c.fullName);
+      setFirstName("");
+      setLastName("");
+    } else if (c.firstName || c.lastName) {
+      setIsCompany(false);
       setFirstName(c.firstName ?? "");
       setLastName(c.lastName ?? "");
+      setCompanyName("");
     } else {
+      // Fallback : split fullName sur le 1er espace
       const parts = c.fullName.split(/\s+/);
+      setIsCompany(false);
       setFirstName(parts[0] ?? "");
       setLastName(parts.slice(1).join(" "));
+      setCompanyName("");
     }
     setEmail(c.email ?? "");
     setPhone(c.phone ?? "");
@@ -176,7 +193,62 @@ export function NewRepairForm({ mode = "repair" }: { mode?: Mode }) {
           </div>
         )}
 
+        {/* Toggle Entreprise — au dessus des champs identite */}
+        <div className="mb-3">
+          <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              name="isCompany"
+              checked={isCompany}
+              onChange={(e) => setIsCompany(e.target.checked)}
+              className="h-4 w-4 accent-primary cursor-pointer"
+            />
+            <span className="text-sm font-semibold">Entreprise (B2B)</span>
+            <span className="text-xs text-foreground-muted">
+              — coché : un seul champ Dénomination ; sinon : Prénom + Nom
+            </span>
+          </label>
+        </div>
+
+        {isCompany ? (
+          // Mode Entreprise : un seul champ Denomination
+          <div className="relative">
+            <label className="block">
+              <span className="text-xs text-foreground-muted font-semibold mb-1.5 block">
+                Dénomination sociale <span className="text-primary">*</span>
+              </span>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-foreground-muted pointer-events-none" />
+                <input
+                  name="companyName"
+                  required
+                  autoComplete="off"
+                  value={companyName}
+                  onChange={(e) => {
+                    setCompanyName(e.target.value);
+                    setActiveField("lastName"); // reutilise la dropdown lastName
+                    setShowSuggestions(true);
+                  }}
+                  onFocus={() => {
+                    setActiveField("lastName");
+                    setShowSuggestions(true);
+                  }}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                  placeholder="Ex : Bonafone SRL, ACME SA…"
+                  className={`${inputCls} pl-9`}
+                />
+              </div>
+            </label>
+            {showSuggestions && activeField === "lastName" && suggestions.length > 0 && (
+              <SuggestionsList suggestions={suggestions} onPick={pickClient} />
+            )}
+          </div>
+        ) : null}
+
         <Grid>
+          {/* Champs Prenom + Nom (uniquement en mode Particulier) */}
+          {!isCompany && (
+          <>
           {/* Prenom — avec dropdown autocomplétion */}
           <div className="relative">
             <label className="block">
@@ -239,6 +311,8 @@ export function NewRepairForm({ mode = "repair" }: { mode?: Mode }) {
               <SuggestionsList suggestions={suggestions} onPick={pickClient} />
             )}
           </div>
+          </>
+          )}
 
           {/* Téléphone — avec dropdown */}
           <div className="relative">
