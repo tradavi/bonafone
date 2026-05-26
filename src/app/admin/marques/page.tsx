@@ -48,7 +48,8 @@ export default async function AdminMarquesPage({ searchParams }: Props) {
       })
     : null;
 
-  // Tri naturel des modeles ("IPhone 8" < "IPhone 16")
+  // Tri naturel DESCENDANT des modeles : "IPhone 16 Pro Max" en tete,
+  // "IPhone 7" en bas. Coherent avec le formulaire de creation reparation.
   const collator = new Intl.Collator("fr", { numeric: true, sensitivity: "base" });
   const modelsByType: Record<string, typeof selectedBrand extends null ? never : NonNullable<typeof selectedBrand>["deviceModels"]> = {};
   if (selectedBrand) {
@@ -56,7 +57,8 @@ export default async function AdminMarquesPage({ searchParams }: Props) {
       (modelsByType[m.deviceType] ??= []).push(m);
     }
     for (const list of Object.values(modelsByType)) {
-      list.sort((a, b) => collator.compare(a.name, b.name));
+      // Inversion (b, a) : plus recents en haut
+      list.sort((a, b) => collator.compare(b.name, a.name));
     }
   }
 
