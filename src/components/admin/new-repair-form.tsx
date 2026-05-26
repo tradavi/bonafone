@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import {
   Save,
@@ -13,7 +13,6 @@ import {
   Banknote,
 } from "lucide-react";
 import { createRepairAdmin } from "@/lib/actions/admin";
-import { MODELS_BY_BRAND, getModelsForBrand } from "@/lib/device-models";
 
 type Mode = "repair" | "devis";
 
@@ -44,9 +43,11 @@ const CONTACT_PREFS = [
 ];
 
 // Liste pré-remplie des marques courantes — datalist permet de saisir une marque libre
-// Source unique de verite : les cles du catalogue de modeles servent aussi
-// de liste des marques courantes (datalist du champ Marque).
-const COMMON_BRANDS = Object.keys(MODELS_BY_BRAND);
+// Catalogue brands + models pousse en prop par la page serveur (lecture DB).
+type Catalog = Array<{
+  name: string;
+  models: Array<{ name: string; deviceType: string }>;
+}>;
 
 type ClientSuggestion = {
   id: string;
@@ -59,7 +60,20 @@ type ClientSuggestion = {
 
 type PaymentStatus = "NON_PAYE" | "ACOMPTE" | "PAYE";
 
-export function NewRepairForm({ mode = "repair" }: { mode?: Mode }) {
+export function NewRepairForm({
+  mode = "repair",
+  catalog = [],
+}: {
+  mode?: Mode;
+  catalog?: Catalog;
+}) {
+  // Index pour acces rapide aux modeles d'une marque donnee
+  const modelsByBrand = useMemo(() => {
+    const map = new Map<string, Array<{ name: string; deviceType: string }>>();
+    for (const b of catalog) map.set(b.name.toLowerCase(), b.models);
+    return map;
+  }, [catalog]);
+  const brandNames = useMemo(() => catalog.map((b) => b.name), [catalog]);
   // Identite client : 2 modes
   //  - Particulier (defaut) : Prenom + Nom separes
   //  - Entreprise (case cochee) : un seul champ "Denomination"
@@ -75,8 +89,26 @@ export function NewRepairForm({ mode = "repair" }: { mode?: Mode }) {
   const [showSuggestions, setShowSuggestions] = useState(false);
   // Etat paiement — l'input "Montant verse" s'affiche uniquement si ACOMPTE
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>("NON_PAYE");
-  // Marque selectionnee : controle dynamiquement le datalist des modeles
+  // Marque + type d'appareil selectionnes : filtrent le datalist des modeles
   const [brand, setBrand] = useState("");
+  const [deviceType, setDeviceType] = useState("SMARTPHONE");
+
+  // Modeles disponibles pour la combinaison (marque + type d'appareil).
+  // Si marque inconnue, on liste tous modeles du type pour aider quand meme.
+  const filteredModels = useMemo(() => {
+    const models = modelsByBrand.get(brand.toLowerCase()) ?? [];
+    if (models.length > 0) {
+      return models.filter((m) => m.deviceType === deviceType).map((m) => m.name);
+    }
+    // Fallback : aucun match de marque → tous les modeles de ce type
+    const all: string[] = [];
+    for (const b of catalog) {
+      for (const m of b.models) {
+        if (m.deviceType === deviceType) all.push(m.name);
+      }
+    }
+    return all;
+  }, [brand, deviceType, modelsByBrand, catalog]);
   // Champ qui a actuellement le focus — sert à afficher la dropdown au bon endroit
   const [activeField, setActiveField] = useState<"firstName" | "lastName" | "email" | "phone" | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -391,13 +423,25 @@ export function NewRepairForm({ mode = "repair" }: { mode?: Mode }) {
 
       <Section title="Appareil">
         <Grid>
-          <SelectStatic label="Type" name="deviceType" required>
-            {DEVICE_TYPES.map((d) => (
-              <option key={d.value} value={d.value}>
-                {d.label}
-              </option>
-            ))}
-          </SelectStatic>
+          {/* Type d'appareil — controle car il filtre aussi les modeles */}
+          <label className="block">
+            <span className="text-xs text-foreground-muted font-semibold mb-1.5 block">
+              Type <span className="text-primary">*</span>
+            </span>
+            <select
+              name="deviceType"
+              required
+              value={deviceType}
+              onChange={(e) => setDeviceType(e.target.value)}
+              className={inputCls}
+            >
+              {DEVICE_TYPES.map((d) => (
+                <option key={d.value} value={d.value}>
+                  {d.label}
+                </option>
+              ))}
+            </select>
+          </label>
           <FieldStatic label="IMEI / N° de série (optionnel)" name="imei" />
 
           {/* Marque — controlee pour piloter le datalist des modeles */}
@@ -413,25 +457,27 @@ export function NewRepairForm({ mode = "repair" }: { mode?: Mode }) {
               list="brand-list"
               value={brand}
               onChange={(e) => setBrand(e.target.value)}
-              placeholder="Apple, Samsung…"
+              placeholder={brandNames[0] ? `Ex : ${brandNames[0]}` : "Apple, Samsung…"}
               className={inputCls}
             />
           </label>
           <datalist id="brand-list">
-            {COMMON_BRANDS.map((b) => (
+            {brandNames.map((b) => (
               <option key={b} value={b} />
             ))}
           </datalist>
 
-          {/* Modele — datalist contextuel selon la marque selectionnee.
-              Si la marque n'est pas dans le catalogue ou pas encore tapee,
-              l'input reste libre. */}
+          {/* Modele — datalist filtre par (marque + type d'appareil).
+              Si la marque n'est pas dans le catalogue, on liste tous les
+              modeles du type pour aider quand meme. Champ libre (datalist
+              != select), donc admin peut saisir un modele non liste. */}
           <label className="block">
             <span className="text-xs text-foreground-muted font-semibold mb-1.5 block">
               Modèle <span className="text-primary">*</span>
-              {brand && getModelsForBrand(brand).length > 0 && (
+              {filteredModels.length > 0 && (
                 <span className="text-foreground-subtle font-normal ml-1.5">
-                  ({getModelsForBrand(brand).length} suggestions pour {brand})
+                  ({filteredModels.length} suggestion{filteredModels.length > 1 ? "s" : ""}
+                  {brand ? ` pour ${brand}` : ""})
                 </span>
               )}
             </span>
@@ -441,21 +487,26 @@ export function NewRepairForm({ mode = "repair" }: { mode?: Mode }) {
               required
               autoComplete="off"
               list="model-list"
-              placeholder={brand ? `Ex : ${getModelsForBrand(brand)[0] ?? "Galaxy S23"}` : "iPhone 13, Galaxy S23…"}
+              placeholder={
+                filteredModels[0] ? `Ex : ${filteredModels[0]}` : "iPhone 15 Pro, Galaxy S24…"
+              }
               className={inputCls}
             />
           </label>
-          {/* Datalist genere dynamiquement avec les modeles de la marque
-              courante. Si pas de marque, on liste tous les modeles toutes
-              marques confondues pour ne pas perdre la suggestion. */}
           <datalist id="model-list">
-            {(brand && getModelsForBrand(brand).length > 0
-              ? getModelsForBrand(brand)
-              : Object.values(MODELS_BY_BRAND).flat()
-            ).map((m) => (
-              <option key={`${brand}-${m}`} value={m} />
+            {filteredModels.map((m) => (
+              <option key={`${brand}-${deviceType}-${m}`} value={m} />
             ))}
           </datalist>
+          {catalog.length === 0 && (
+            <p className="text-xs text-amber-500 md:col-span-2">
+              Aucun catalogue marques/modèles configuré.{" "}
+              <a href="/admin/marques" className="underline">
+                Aller dans Marques & modèles
+              </a>{" "}
+              pour en ajouter.
+            </p>
+          )}
         </Grid>
       </Section>
 

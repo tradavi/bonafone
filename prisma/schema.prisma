@@ -66,11 +66,28 @@ model Address {
 // grade       : A | B | C (occasions/reconditionnés)
 
 model Brand {
-  id       String    @id @default(cuid())
-  name     String    @unique
-  slug     String    @unique
-  logoUrl  String?
-  products Product[]
+  id           String        @id @default(cuid())
+  name         String        @unique
+  slug         String        @unique
+  logoUrl      String?
+  products     Product[]
+  deviceModels DeviceModel[]
+}
+
+// Modeles d'appareils disponibles pour les reparations. Liste maintenue
+// depuis /admin/marques. Chaque modele est rattache a une Brand et a un
+// deviceType (SMARTPHONE | TABLETTE | ORDINATEUR_PORTABLE | AUTRE).
+model DeviceModel {
+  id         String   @id @default(cuid())
+  brandId    String
+  brand      Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  name       String
+  deviceType String
+  createdAt  DateTime @default(now())
+
+  @@unique([brandId, name])
+  @@index([deviceType])
+  @@index([brandId])
 }
 
 model Product {

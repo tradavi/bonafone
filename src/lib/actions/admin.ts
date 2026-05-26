@@ -286,10 +286,11 @@ const CreateRepairSchema = z.object({
   clientId: z.string().optional(),
   // Mode particulier : Prenom + Nom separes
   // Mode entreprise : companyName (denomination sociale)
-  // Compat retro : customerName accepte en fallback
-  firstName: z.string().trim().min(1).max(60).optional(),
-  lastName: z.string().trim().min(1).max(60).optional(),
-  companyName: z.string().trim().min(2).max(120).optional(),
+  // Refinement plus bas : au moins un des deux groupes DOIT etre rempli.
+  firstName: z.string().trim().min(2, "Prénom requis (2 caractères min)").max(60).optional(),
+  lastName: z.string().trim().min(2, "Nom requis (2 caractères min)").max(60).optional(),
+  companyName: z.string().trim().min(2, "Dénomination requise").max(120).optional(),
+  // Compat retro pour anciens scripts/tests — ignore si firstName/lastName/companyName fournis
   customerName: z.string().min(2).max(120).optional(),
   customerEmail: z.union([z.string().email(), z.literal("")]).optional(),
   customerPhone: z.string().min(6).max(30),
@@ -305,7 +306,18 @@ const CreateRepairSchema = z.object({
   // Paiement : NON_PAYE (defaut) | ACOMPTE | PAYE. paidAmount obligatoire pour ACOMPTE.
   paymentStatus: z.enum(["NON_PAYE", "ACOMPTE", "PAYE"]).default("NON_PAYE"),
   paidAmount: z.coerce.number().min(0).optional(),
-});
+}).refine(
+  // Identite obligatoire : soit (firstName + lastName) soit companyName.
+  // customerName legacy compte aussi comme fallback (vieux clients API).
+  (d) =>
+    (d.firstName && d.lastName) ||
+    d.companyName ||
+    (d.customerName && d.customerName.trim().length >= 2),
+  {
+    message: "Prénom et nom requis (ou Dénomination si entreprise)",
+    path: ["firstName"],
+  },
+);
 
 export async function createRepairAdmin(formData: FormData) {
   const user = await requireAdmin();

@@ -1,14 +1,31 @@
 import Link from "next/link";
 import { ArrowLeft, AlertCircle, FileText, Wrench } from "lucide-react";
 import { NewRepairForm } from "@/components/admin/new-repair-form";
+import { prisma } from "@/lib/prisma";
 
 export const metadata = { title: "Nouveau dossier" };
+export const dynamic = "force-dynamic";
 
 type Props = { searchParams: Promise<{ error?: string; mode?: string }> };
 
 export default async function NewRepairPage({ searchParams }: Props) {
   const { error, mode } = await searchParams;
   const isDevis = mode === "devis";
+
+  // Charge le catalogue brands + models depuis la DB pour piloter les datalists.
+  // Permet a l'admin d'ajouter une marque/modele via /admin/marques sans
+  // toucher au code. Tri par nom de marque, modeles par deviceType puis nom.
+  const brandsWithModels = await prisma.brand.findMany({
+    orderBy: { name: "asc" },
+    include: {
+      deviceModels: { orderBy: [{ deviceType: "asc" }, { name: "asc" }] },
+    },
+  });
+  // Format leger pour le client component (pas d'objets Prisma profonds).
+  const catalog = brandsWithModels.map((b) => ({
+    name: b.name,
+    models: b.deviceModels.map((m) => ({ name: m.name, deviceType: m.deviceType })),
+  }));
 
   return (
     <div className="space-y-5">
@@ -47,7 +64,7 @@ export default async function NewRepairPage({ searchParams }: Props) {
         </div>
       )}
 
-      <NewRepairForm mode={isDevis ? "devis" : "repair"} />
+      <NewRepairForm mode={isDevis ? "devis" : "repair"} catalog={catalog} />
     </div>
   );
 }

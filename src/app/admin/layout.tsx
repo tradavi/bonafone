@@ -7,6 +7,7 @@ import {
   Star,
   Settings,
   AlertCircle,
+  Tags,
 } from "lucide-react";
 import { LogoMark } from "@/components/ui/logo";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
@@ -49,6 +50,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       badge: devisCount > 0 ? devisCount : undefined,
     },
     { href: "/admin/clients", label: "Clients", icon: <Users className={ICON_CLS} /> },
+    { href: "/admin/marques", label: "Marques & modèles", icon: <Tags className={ICON_CLS} /> },
     { href: "/admin/avis", label: "Avis", icon: <Star className={ICON_CLS} /> },
     { href: "/admin/reclamations", label: "Réclamations", icon: <AlertCircle className={ICON_CLS} /> },
     { href: "/admin/messages", label: "Messages", icon: <MessageSquare className={ICON_CLS} /> },
