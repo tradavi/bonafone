@@ -13,6 +13,7 @@ import {
   Banknote,
 } from "lucide-react";
 import { createRepairAdmin } from "@/lib/actions/admin";
+import { MODELS_BY_BRAND, getModelsForBrand } from "@/lib/device-models";
 
 type Mode = "repair" | "devis";
 
@@ -43,37 +44,15 @@ const CONTACT_PREFS = [
 ];
 
 // Liste pré-remplie des marques courantes — datalist permet de saisir une marque libre
-const COMMON_BRANDS = [
-  "Apple",
-  "Samsung",
-  "Huawei",
-  "Xiaomi",
-  "Google",
-  "OnePlus",
-  "Oppo",
-  "Sony",
-  "Nokia",
-  "Motorola",
-  "Honor",
-  "Realme",
-  "ASUS",
-  "Lenovo",
-  "Microsoft",
-  "Acer",
-  "HP",
-  "Dell",
-  "Alcatel",
-  "TCL",
-  "Vivo",
-  "Wiko",
-  "Crosscall",
-  "Fairphone",
-  "Doro",
-];
+// Source unique de verite : les cles du catalogue de modeles servent aussi
+// de liste des marques courantes (datalist du champ Marque).
+const COMMON_BRANDS = Object.keys(MODELS_BY_BRAND);
 
 type ClientSuggestion = {
   id: string;
   fullName: string;
+  firstName: string | null;
+  lastName: string | null;
   email: string | null;
   phone: string | null;
 };
@@ -81,7 +60,11 @@ type ClientSuggestion = {
 type PaymentStatus = "NON_PAYE" | "ACOMPTE" | "PAYE";
 
 export function NewRepairForm({ mode = "repair" }: { mode?: Mode }) {
-  const [name, setName] = useState("");
+  // Identite client en 2 champs separes (Prenom + Nom). Recompose en
+  // customerName cote backend pour le Repair, et stocke en firstName/lastName
+  // sur le User.
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [linkedClient, setLinkedClient] = useState<ClientSuggestion | null>(null);
@@ -89,19 +72,22 @@ export function NewRepairForm({ mode = "repair" }: { mode?: Mode }) {
   const [showSuggestions, setShowSuggestions] = useState(false);
   // Etat paiement — l'input "Montant verse" s'affiche uniquement si ACOMPTE
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>("NON_PAYE");
+  // Marque selectionnee : controle dynamiquement le datalist des modeles
+  const [brand, setBrand] = useState("");
   // Champ qui a actuellement le focus — sert à afficher la dropdown au bon endroit
-  const [activeField, setActiveField] = useState<"name" | "email" | "phone" | null>(null);
+  const [activeField, setActiveField] = useState<"firstName" | "lastName" | "email" | "phone" | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Autocomplétion : déclenchée à chaque frappe dans name/email/phone.
+  // Autocomplétion : déclenchée à chaque frappe dans firstName/lastName/email/phone.
   // Le backend cherche dans nom + email + téléphone simultanément (haystack).
   // Debounce 200ms pour éviter les requêtes à chaque touche.
   useEffect(() => {
     if (linkedClient) return; // déjà rattaché → pas de recherche
-    // On prend la valeur la plus longue parmi name/email/phone comme query.
+    // On prend la valeur la plus longue parmi les champs identite comme query.
     // Le téléphone : on enlève espaces/tirets pour le matching.
+    const fullNameQuery = `${firstName} ${lastName}`.trim();
     const candidates = [
-      name.trim(),
+      fullNameQuery,
       email.trim(),
       phone.replace(/[\s\-.]/g, "").trim(),
     ].filter((v) => v.length >= 2);
@@ -112,7 +98,7 @@ export function NewRepairForm({ mode = "repair" }: { mode?: Mode }) {
     // On envoie celui qui vient d'être modifié (le plus récent = activeField).
     // Sinon le plus long.
     let q = "";
-    if (activeField === "name") q = name.trim();
+    if (activeField === "firstName" || activeField === "lastName") q = fullNameQuery;
     else if (activeField === "email") q = email.trim();
     else if (activeField === "phone") q = phone.trim();
     else q = candidates.sort((a, b) => b.length - a.length)[0];
@@ -136,11 +122,20 @@ export function NewRepairForm({ mode = "repair" }: { mode?: Mode }) {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [name, email, phone, activeField, linkedClient]);
+  }, [firstName, lastName, email, phone, activeField, linkedClient]);
 
   function pickClient(c: ClientSuggestion) {
     setLinkedClient(c);
-    setName(c.fullName);
+    // Si firstName/lastName en DB, on les utilise directement. Sinon on
+    // fallback en splittant fullName sur le 1er espace.
+    if (c.firstName || c.lastName) {
+      setFirstName(c.firstName ?? "");
+      setLastName(c.lastName ?? "");
+    } else {
+      const parts = c.fullName.split(/\s+/);
+      setFirstName(parts[0] ?? "");
+      setLastName(parts.slice(1).join(" "));
+    }
     setEmail(c.email ?? "");
     setPhone(c.phone ?? "");
     setSuggestions([]);
@@ -182,39 +177,65 @@ export function NewRepairForm({ mode = "repair" }: { mode?: Mode }) {
         )}
 
         <Grid>
-          {/* Nom — avec dropdown autocomplétion */}
-          <div className="md:col-span-2 relative">
+          {/* Prenom — avec dropdown autocomplétion */}
+          <div className="relative">
             <label className="block">
               <span className="text-xs text-foreground-muted font-semibold mb-1.5 block">
-                Nom complet <span className="text-primary">*</span>
-                <span className="text-foreground-subtle font-normal ml-1.5">
-                  (recherche : nom, téléphone ou email)
-                </span>
+                Prénom <span className="text-primary">*</span>
               </span>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-foreground-muted pointer-events-none" />
                 <input
-                  name="customerName"
+                  name="firstName"
                   required
                   autoComplete="off"
-                  value={name}
+                  value={firstName}
                   onChange={(e) => {
-                    setName(e.target.value);
-                    setActiveField("name");
+                    setFirstName(e.target.value);
+                    setActiveField("firstName");
                     setShowSuggestions(true);
                   }}
                   onFocus={() => {
-                    setActiveField("name");
+                    setActiveField("firstName");
                     setShowSuggestions(true);
                   }}
                   onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-                  placeholder="Tapez le nom…"
+                  placeholder="Marc"
                   className={`${inputCls} pl-9`}
                 />
               </div>
             </label>
+            {showSuggestions && activeField === "firstName" && suggestions.length > 0 && (
+              <SuggestionsList suggestions={suggestions} onPick={pickClient} />
+            )}
+          </div>
 
-            {showSuggestions && activeField === "name" && suggestions.length > 0 && (
+          {/* Nom de famille */}
+          <div className="relative">
+            <label className="block">
+              <span className="text-xs text-foreground-muted font-semibold mb-1.5 block">
+                Nom <span className="text-primary">*</span>
+              </span>
+              <input
+                name="lastName"
+                required
+                autoComplete="off"
+                value={lastName}
+                onChange={(e) => {
+                  setLastName(e.target.value);
+                  setActiveField("lastName");
+                  setShowSuggestions(true);
+                }}
+                onFocus={() => {
+                  setActiveField("lastName");
+                  setShowSuggestions(true);
+                }}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                placeholder="Dupont"
+                className={inputCls}
+              />
+            </label>
+            {showSuggestions && activeField === "lastName" && suggestions.length > 0 && (
               <SuggestionsList suggestions={suggestions} onPick={pickClient} />
             )}
           </div>
@@ -304,13 +325,63 @@ export function NewRepairForm({ mode = "repair" }: { mode?: Mode }) {
             ))}
           </SelectStatic>
           <FieldStatic label="IMEI / N° de série (optionnel)" name="imei" />
-          <FieldStatic label="Marque" name="brand" required listId="brand-list" placeholder="Apple, Samsung…" />
+
+          {/* Marque — controlee pour piloter le datalist des modeles */}
+          <label className="block">
+            <span className="text-xs text-foreground-muted font-semibold mb-1.5 block">
+              Marque <span className="text-primary">*</span>
+            </span>
+            <input
+              name="brand"
+              type="text"
+              required
+              autoComplete="off"
+              list="brand-list"
+              value={brand}
+              onChange={(e) => setBrand(e.target.value)}
+              placeholder="Apple, Samsung…"
+              className={inputCls}
+            />
+          </label>
           <datalist id="brand-list">
             {COMMON_BRANDS.map((b) => (
               <option key={b} value={b} />
             ))}
           </datalist>
-          <FieldStatic label="Modèle" name="model" required placeholder="iPhone 13, Galaxy S23…" />
+
+          {/* Modele — datalist contextuel selon la marque selectionnee.
+              Si la marque n'est pas dans le catalogue ou pas encore tapee,
+              l'input reste libre. */}
+          <label className="block">
+            <span className="text-xs text-foreground-muted font-semibold mb-1.5 block">
+              Modèle <span className="text-primary">*</span>
+              {brand && getModelsForBrand(brand).length > 0 && (
+                <span className="text-foreground-subtle font-normal ml-1.5">
+                  ({getModelsForBrand(brand).length} suggestions pour {brand})
+                </span>
+              )}
+            </span>
+            <input
+              name="model"
+              type="text"
+              required
+              autoComplete="off"
+              list="model-list"
+              placeholder={brand ? `Ex : ${getModelsForBrand(brand)[0] ?? "Galaxy S23"}` : "iPhone 13, Galaxy S23…"}
+              className={inputCls}
+            />
+          </label>
+          {/* Datalist genere dynamiquement avec les modeles de la marque
+              courante. Si pas de marque, on liste tous les modeles toutes
+              marques confondues pour ne pas perdre la suggestion. */}
+          <datalist id="model-list">
+            {(brand && getModelsForBrand(brand).length > 0
+              ? getModelsForBrand(brand)
+              : Object.values(MODELS_BY_BRAND).flat()
+            ).map((m) => (
+              <option key={`${brand}-${m}`} value={m} />
+            ))}
+          </datalist>
         </Grid>
       </Section>
 

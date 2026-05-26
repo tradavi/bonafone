@@ -439,6 +439,8 @@ export async function getAdminClientById(id: string) {
 export type ClientSuggestion = {
   id: string;
   fullName: string;
+  firstName: string | null;
+  lastName: string | null;
   email: string | null;
   phone: string | null;
 };
@@ -481,6 +483,8 @@ export async function searchClients(query: string, limit = 8): Promise<ClientSug
     .map(({ u, fullName, realEmail }) => ({
       id: u.id,
       fullName: fullName || (realEmail ? realEmail.split("@")[0] : "Client"),
+      firstName: u.firstName,
+      lastName: u.lastName,
       // On renvoie null à la place de l'email synthétique pour ne pas l'afficher
       email: realEmail || null,
       phone: u.phone,

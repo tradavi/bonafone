@@ -284,7 +284,11 @@ const CreateRepairSchema = z.object({
   // appareil reçu pour devis uniquement, en attente d'acceptation du client)
   mode: z.enum(["repair", "devis"]).default("repair"),
   clientId: z.string().optional(),
-  customerName: z.string().min(2).max(120),
+  // Prenom + Nom separes (recomposes en customerName pour le Repair).
+  // customerName reste accepte en fallback pour compat avec scripts/tests.
+  firstName: z.string().trim().min(1, "Prénom requis").max(60).optional(),
+  lastName: z.string().trim().min(1, "Nom requis").max(60).optional(),
+  customerName: z.string().min(2).max(120).optional(),
   customerEmail: z.union([z.string().email(), z.literal("")]).optional(),
   customerPhone: z.string().min(6).max(30),
   contactPref: z.enum(["EMAIL", "TELEPHONE", "WHATSAPP"]).default("TELEPHONE"),
@@ -311,6 +315,19 @@ export async function createRepairAdmin(formData: FormData) {
     );
   }
   const data = parsed.data;
+
+  // Compose customerName a partir de firstName/lastName si fournis ; sinon
+  // utilise customerName legacy si l'ancien formulaire est encore en cache.
+  const composedName =
+    data.firstName || data.lastName
+      ? `${data.firstName ?? ""} ${data.lastName ?? ""}`.trim()
+      : data.customerName?.trim() ?? "";
+  if (composedName.length < 2) {
+    redirect(`/admin/reparations/nouveau?error=${encodeURIComponent("Prénom et nom requis")}`);
+  }
+  // On force customerName composé pour la suite de la fonction (pour que les
+  // dedup-check, recherches User, etc. fonctionnent identiquement a avant).
+  data.customerName = composedName;
 
   // -------------------------------------------------------------
   // Anti-duplication : protection contre double-clic / replay
@@ -395,9 +412,12 @@ export async function createRepairAdmin(formData: FormData) {
     // Email synthétique si l'admin n'en a pas fourni (sera remplaçable
     // plus tard via la fiche client).
     const phoneDigits = data.customerPhone.replace(/\D/g, "");
-    const tokens = data.customerName.trim().split(/\s+/);
-    const firstName = tokens[0] ?? data.customerName;
-    const lastName = tokens.slice(1).join(" ") || null;
+    // Prefer firstName/lastName fournis explicitement par le form ; sinon
+    // fallback en splittant customerName (compat avec anciens scripts).
+    const firstName =
+      data.firstName?.trim() || data.customerName.trim().split(/\s+/)[0] || data.customerName;
+    const lastName =
+      data.lastName?.trim() || data.customerName.trim().split(/\s+/).slice(1).join(" ") || null;
     const hasRealEmail = Boolean(data.customerEmail);
     const email = hasRealEmail
       ? data.customerEmail!.toLowerCase()
