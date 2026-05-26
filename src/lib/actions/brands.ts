@@ -52,17 +52,22 @@ export async function createBrand(formData: FormData) {
     );
   }
   const name = parsed.data.name;
+  let newBrandId: string | null = null;
   try {
-    await prisma.brand.create({
+    const created = await prisma.brand.create({
       data: { name, slug: slugify(name) },
+      select: { id: true },
     });
+    newBrandId = created.id;
   } catch {
     redirect(
       `/admin/marques?error=${encodeURIComponent(`La marque "${name}" existe déjà`)}`,
     );
   }
   revalidatePath("/admin/marques");
-  redirect("/admin/marques?saved=1");
+  // Auto-selectionne la marque tout juste creee pour qu'on puisse ajouter
+  // ses premiers modeles dans la foulee.
+  redirect(`/admin/marques?brand=${newBrandId}&saved=1`);
 }
 
 export async function updateBrand(formData: FormData) {
@@ -105,6 +110,7 @@ export async function deleteBrand(formData: FormData) {
   // Cascade : les DeviceModel rattaches sont supprimes automatiquement.
   await prisma.brand.delete({ where: { id } });
   revalidatePath("/admin/marques");
+  // Pas de ?brand= dans l'URL car la marque vient d'etre supprimee.
   redirect("/admin/marques?saved=1");
 }
 
@@ -160,7 +166,7 @@ export async function createDeviceModel(formData: FormData) {
     );
   }
   revalidatePath("/admin/marques");
-  redirect(`/admin/marques?saved=1#brand-${parsed.data.brandId}`);
+  redirect(`/admin/marques?brand=${parsed.data.brandId}&saved=1`);
 }
 
 export async function updateDeviceModel(formData: FormData) {
@@ -184,7 +190,7 @@ export async function updateDeviceModel(formData: FormData) {
     },
   });
   revalidatePath("/admin/marques");
-  redirect(`/admin/marques?saved=1#brand-${parsed.data.brandId}`);
+  redirect(`/admin/marques?brand=${parsed.data.brandId}&saved=1`);
 }
 
 export async function deleteDeviceModel(formData: FormData) {
@@ -194,5 +200,9 @@ export async function deleteDeviceModel(formData: FormData) {
   if (typeof id !== "string") throw new Error("ID manquant");
   await prisma.deviceModel.delete({ where: { id } });
   revalidatePath("/admin/marques");
-  redirect(`/admin/marques?saved=1${typeof brandId === "string" ? `#brand-${brandId}` : ""}`);
+  redirect(
+    typeof brandId === "string"
+      ? `/admin/marques?brand=${brandId}&saved=1`
+      : "/admin/marques?saved=1",
+  );
 }
