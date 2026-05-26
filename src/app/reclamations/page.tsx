@@ -55,6 +55,12 @@ export default async function ReclamationsPage({ searchParams }: Props) {
           encType="multipart/form-data"
           className="bg-surface border border-border rounded-2xl p-6 md:p-8 space-y-5"
         >
+          {/* Anti-spam : timestamp + honeypot (voir lib/spam-check.ts) */}
+          <input type="hidden" name="formRenderedAt" value={Date.now()} />
+          <div aria-hidden="true" className="absolute left-[-9999px] top-[-9999px] h-0 w-0 overflow-hidden opacity-0 pointer-events-none">
+            <label htmlFor="website-recl">Site web (ne pas remplir)</label>
+            <input id="website-recl" type="text" name="website" tabIndex={-1} autoComplete="off" />
+          </div>
           <Field label="Type de réclamation" name="type" required>
             <select name="type" required className={inputCls}>
               <option value="">— Sélectionnez —</option>

@@ -78,6 +78,12 @@ export default async function ContactPage({ searchParams }: Props) {
             action={sendContactMessage}
             className="lg:col-span-2 bg-surface border border-border rounded-2xl p-6 md:p-8 space-y-4 self-start"
           >
+            {/* Anti-spam : timestamp + honeypot (voir lib/spam-check.ts) */}
+            <input type="hidden" name="formRenderedAt" value={Date.now()} />
+            <div aria-hidden="true" className="absolute left-[-9999px] top-[-9999px] h-0 w-0 overflow-hidden opacity-0 pointer-events-none">
+              <label htmlFor="website-contact">Site web (ne pas remplir)</label>
+              <input id="website-contact" type="text" name="website" tabIndex={-1} autoComplete="off" />
+            </div>
           <h2 className="text-xl font-extrabold mb-2 tracking-tight">Envoyer un message</h2>
           {sent && (
             <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg flex items-start gap-3">

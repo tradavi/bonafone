@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { sendPushToAdmins } from "@/lib/push";
+import { checkSpam } from "@/lib/spam-check";
 
 const ContactSchema = z.object({
   name: z.string().min(2).max(100),
@@ -22,6 +23,19 @@ export async function sendContactMessage(formData: FormData) {
     for (const [k, v] of formData.entries()) {
       if (typeof v === "string") raw[k] = v;
     }
+    // Anti-spam : honeypot + time + patterns. Voir lib/spam-check.ts.
+    const spam = checkSpam({
+      name: raw.name,
+      email: raw.email,
+      phone: raw.phone,
+      honeypot: raw.website,
+      formRenderedAt: raw.formRenderedAt,
+    });
+    if (spam.spam) {
+      console.warn(`[anti-spam contact] rejete: ${spam.reason} | ${raw.email ?? "?"}`);
+      redirect(`/contact?error=${encodeURIComponent("Formulaire non valide. Réessayez ou contactez-nous directement.")}`);
+    }
+
     const parsed = ContactSchema.safeParse(raw);
     if (!parsed.success) {
       const msg = parsed.error.errors[0]?.message ?? "Formulaire invalide";

@@ -41,6 +41,13 @@ export default async function DevisPage({ searchParams }: Props) {
           encType="multipart/form-data"
           className="bg-surface border border-border rounded-2xl p-6 md:p-8 space-y-7"
         >
+          {/* Anti-spam : timestamp serveur du rendu (rejette si submit < 3s).
+              Hidden field "website" = honeypot (vide chez humain, rempli par bot). */}
+          <input type="hidden" name="formRenderedAt" value={Date.now()} />
+          <div aria-hidden="true" className="absolute left-[-9999px] top-[-9999px] h-0 w-0 overflow-hidden opacity-0 pointer-events-none">
+            <label htmlFor="website-devis">Site web (ne pas remplir)</label>
+            <input id="website-devis" type="text" name="website" tabIndex={-1} autoComplete="off" />
+          </div>
           {/* Appareil */}
           <Section title="1. Votre appareil">
             <Field label="Type d'appareil" name="deviceType" required>

@@ -9,6 +9,7 @@ import { generateNextRepairNumber } from "@/lib/queries";
 import { sendEmail, tplDevisReceived } from "@/lib/notifications";
 import { saveUploadedImage, isImageFile } from "@/lib/uploads";
 import { sendPushToAdmins } from "@/lib/push";
+import { checkSpam } from "@/lib/spam-check";
 
 const MAX_PHOTOS = 5;
 
@@ -35,6 +36,21 @@ export async function createDevis(formData: FormData) {
     const raw: Record<string, string> = {};
     for (const [key, value] of formData.entries()) {
       if (typeof value === "string") raw[key] = value;
+    }
+
+    // Anti-spam : on check AVANT toute validation Zod pour eviter d'enregistrer
+    // les bots qui passeraient la validation. Aucun message d'erreur revele
+    // les criteres au bot — on retourne une erreur generique.
+    const spam = checkSpam({
+      name: raw.customerName,
+      email: raw.customerEmail,
+      phone: raw.customerPhone,
+      honeypot: raw.website,
+      formRenderedAt: raw.formRenderedAt,
+    });
+    if (spam.spam) {
+      console.warn(`[anti-spam devis] rejete: ${spam.reason} | ${raw.customerEmail ?? "?"}`);
+      redirect(`/reparations/devis?error=${encodeURIComponent("Formulaire non valide. Réessayez ou contactez-nous directement.")}`);
     }
 
     const parsed = DevisSchema.safeParse(raw);

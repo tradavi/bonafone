@@ -8,6 +8,7 @@ import { generateNextReclamationNumber } from "@/lib/queries";
 import { sendEmail, tplReclamationReceived } from "@/lib/notifications";
 import { sendPushToAdmins } from "@/lib/push";
 import { saveUploadedImage, isImageFile } from "@/lib/uploads";
+import { checkSpam } from "@/lib/spam-check";
 
 const TYPE_LABEL: Record<string, string> = {
   COMMANDE: "commande",
@@ -36,6 +37,18 @@ export async function createReclamation(formData: FormData) {
     for (const [k, v] of formData.entries()) {
       if (typeof v === "string") raw[k] = v;
     }
+    // Anti-spam : honeypot + time + patterns. Voir lib/spam-check.ts.
+    const spam = checkSpam({
+      email: raw.email,
+      phone: raw.phone,
+      honeypot: raw.website,
+      formRenderedAt: raw.formRenderedAt,
+    });
+    if (spam.spam) {
+      console.warn(`[anti-spam reclamation] rejete: ${spam.reason} | ${raw.email ?? "?"}`);
+      redirect(`/reclamations?error=${encodeURIComponent("Formulaire non valide. Réessayez ou contactez-nous directement.")}`);
+    }
+
     const parsed = ReclamationSchema.safeParse(raw);
     if (!parsed.success) {
       const msg = parsed.error.errors[0]?.message ?? "Formulaire invalide";
