@@ -110,20 +110,32 @@ export async function deleteBrand(formData: FormData) {
 
 // ----------------------------------------------------- DeviceModel CRUD
 
+/**
+ * Normalise le nom de modele :
+ *  - Trim espaces externes
+ *  - Capitalise la 1re lettre (force la majuscule meme si l'admin tape "iphone")
+ *  - Effondre les espaces multiples
+ */
+function normalizeModelName(input: string): string {
+  const trimmed = input.trim().replace(/\s+/g, " ");
+  if (!trimmed) return "";
+  return trimmed[0].toUpperCase() + trimmed.slice(1);
+}
+
 const ModelSchema = z.object({
   id: z.string().optional(),
   brandId: z.string().min(1),
-  // Le modele DOIT commencer par majuscule ou chiffre — convention metier
-  // pour eviter "iphone" tout en bas (l'iPhone d'Apple commence par 'i'
-  // minuscule mais on l'autorise via le regex en acceptant le prefixe i + Maj).
+  // Le nom passe d'abord par normalizeModelName (capitalisation auto).
+  // La validation finale exige donc forcement une majuscule ou un chiffre.
   name: z
     .string()
     .trim()
     .min(1, "Nom de modèle requis")
     .max(80)
+    .transform(normalizeModelName)
     .refine(
-      (v) => /^[A-Zi0-9]/.test(v),
-      "Le modèle doit commencer par une majuscule (ou 'i' pour iPhone/iPad)",
+      (v) => /^[A-Z0-9]/.test(v),
+      "Le modèle doit commencer par une lettre ou un chiffre",
     ),
   deviceType: z.enum(["SMARTPHONE", "TABLETTE", "ORDINATEUR_PORTABLE", "AUTRE"]),
 });

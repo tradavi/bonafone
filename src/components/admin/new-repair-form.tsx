@@ -95,19 +95,24 @@ export function NewRepairForm({
 
   // Modeles disponibles pour la combinaison (marque + type d'appareil).
   // Si marque inconnue, on liste tous modeles du type pour aider quand meme.
+  // Tri naturel : "IPhone 8" < "IPhone 9" < "IPhone 10" < "IPhone 11" (et pas
+  // "IPhone 10" < "IPhone 11" < "IPhone 8" comme en tri purement alphabetique).
   const filteredModels = useMemo(() => {
+    const collator = new Intl.Collator("fr", { numeric: true, sensitivity: "base" });
     const models = modelsByBrand.get(brand.toLowerCase()) ?? [];
+    let result: string[];
     if (models.length > 0) {
-      return models.filter((m) => m.deviceType === deviceType).map((m) => m.name);
-    }
-    // Fallback : aucun match de marque → tous les modeles de ce type
-    const all: string[] = [];
-    for (const b of catalog) {
-      for (const m of b.models) {
-        if (m.deviceType === deviceType) all.push(m.name);
+      result = models.filter((m) => m.deviceType === deviceType).map((m) => m.name);
+    } else {
+      // Fallback : aucun match de marque → tous les modeles de ce type
+      result = [];
+      for (const b of catalog) {
+        for (const m of b.models) {
+          if (m.deviceType === deviceType) result.push(m.name);
+        }
       }
     }
-    return all;
+    return result.sort((a, b) => collator.compare(a, b));
   }, [brand, deviceType, modelsByBrand, catalog]);
   // Champ qui a actuellement le focus — sert à afficher la dropdown au bon endroit
   const [activeField, setActiveField] = useState<"firstName" | "lastName" | "email" | "phone" | null>(null);

@@ -97,10 +97,15 @@ export default async function AdminMarquesPage({ searchParams }: Props) {
           </div>
         )}
         {brands.map((b) => {
-          // Regroupe les modeles par deviceType
+          // Regroupe les modeles par deviceType + tri naturel par groupe
+          // ("IPhone 8" avant "IPhone 16" — pas le tri alphabetique brut)
+          const collator = new Intl.Collator("fr", { numeric: true, sensitivity: "base" });
           const byType: Record<string, typeof b.deviceModels> = {};
           for (const m of b.deviceModels) {
             (byType[m.deviceType] ??= []).push(m);
+          }
+          for (const list of Object.values(byType)) {
+            list.sort((a, b) => collator.compare(a.name, b.name));
           }
           return (
             <div
