@@ -95,8 +95,8 @@ export function NewRepairForm({
 
   // Modeles disponibles pour la combinaison (marque + type d'appareil).
   // Si marque inconnue, on liste tous modeles du type pour aider quand meme.
-  // Tri naturel : "IPhone 8" < "IPhone 9" < "IPhone 10" < "IPhone 11" (et pas
-  // "IPhone 10" < "IPhone 11" < "IPhone 8" comme en tri purement alphabetique).
+  // Tri naturel DESCENDANT : "IPhone 16 Pro Max" en tete, "IPhone 7" en bas.
+  // Les plus recents sont les plus demandes en reparation → en haut de liste.
   const filteredModels = useMemo(() => {
     const collator = new Intl.Collator("fr", { numeric: true, sensitivity: "base" });
     const models = modelsByBrand.get(brand.toLowerCase()) ?? [];
@@ -112,7 +112,8 @@ export function NewRepairForm({
         }
       }
     }
-    return result.sort((a, b) => collator.compare(a, b));
+    // Inversion (b, a) → plus recents en tete
+    return result.sort((a, b) => collator.compare(b, a));
   }, [brand, deviceType, modelsByBrand, catalog]);
   // Champ qui a actuellement le focus — sert à afficher la dropdown au bon endroit
   const [activeField, setActiveField] = useState<"firstName" | "lastName" | "email" | "phone" | null>(null);
